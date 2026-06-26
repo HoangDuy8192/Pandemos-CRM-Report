@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pandemos CRM — Upload Data</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap');
+:root{--bg:#0f0e0d;--surface:#1a1916;--surface2:#211f1c;--border:#2e2b26;--gold:#c9a84c;--gold-light:#e8c97a;--rose:#c46b5e;--sage:#7a9e7e;--text:#f0ebe3;--text-muted:#8a8278;--text-dim:#5a5650;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;min-height:100vh;display:flex;flex-direction:column;}
+header{background:linear-gradient(135deg,#1a1916,#211f1c);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:'DM Serif Display',serif;font-size:20px;color:var(--gold-light);}
+.logo span{color:var(--text-muted);font-size:11px;font-family:'Inter',sans-serif;display:block;letter-spacing:.15em;text-transform:uppercase;}
+.badge{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:rgba(196,107,94,.15);color:#e89a90;}
+main{flex:1;padding:32px;max-width:800px;margin:0 auto;width:100%;}
+h2{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:6px;}
+.sub{color:var(--text-muted);font-size:12px;margin-bottom:28px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px;position:relative;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);opacity:.5;border-radius:12px 12px 0 0;}
+.card-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:14px;}
+label{display:block;font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;}
+input[type=text],input[type=password]{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;}
+input:focus{border-color:var(--gold);}
+.field{margin-bottom:16px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.drop-zone{border:2px dashed var(--border);border-radius:10px;padding:36px 24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--gold);background:rgba(201,168,76,.05);}
+.drop-zone .icon{font-size:32px;margin-bottom:10px;}
+.drop-zone .hint{font-size:12px;color:var(--text-muted);}
+.drop-zone .hint strong{color:var(--gold-light);}
+#fileInput{display:none;}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;border:none;transition:all .2s;}
+.btn-primary{background:var(--gold);color:#1a1500;}
+.btn-primary:hover{background:var(--gold-light);}
+.btn-primary:disabled{background:#3a3020;color:var(--text-muted);cursor:not-allowed;}
+.btn-secondary{background:transparent;color:var(--text-muted);border:1px solid var(--border);}
+.btn-secondary:hover{color:var(--text);border-color:var(--gold);}
+.btn-danger{background:rgba(196,107,94,.15);color:#e89a90;border:1px solid rgba(196,107,94,.3);}
+.progress-wrap{display:none;margin-top:16px;}
+.progress-bg{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--gold);border-radius:3px;transition:width .3s;width:0%;}
+.log{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:11px;font-family:monospace;color:var(--text-muted);max-height:200px;overflow-y:auto;margin-top:14px;display:none;}
+.log .ok{color:#9ed0a2;}.log .err{color:#e89a90;}.log .info{color:var(--gold);}
+.status-bar{display:none;align-items:center;gap:10px;padding:12px 16px;border-radius:8px;font-size:12px;margin-top:16px;}
+.status-bar.success{background:rgba(122,158,126,.12);border:1px solid rgba(122,158,126,.3);color:#9ed0a2;}
+.status-bar.error{background:rgba(196,107,94,.12);border:1px solid rgba(196,107,94,.3);color:#e89a90;}
+.status-bar.loading{background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);color:var(--gold-light);}
+.file-selected{display:none;align-items:center;gap:10px;padding:12px;background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.2);border-radius:8px;margin-top:12px;}
+.file-selected .fname{font-size:12px;color:var(--gold-light);flex:1;}
+.toggle-pwd{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:2px;}
+.pwd-wrap{position:relative;}
+.tip{font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5;}
+.link{color:var(--gold);text-decoration:none;}.link:hover{text-decoration:underline;}
+.saved-dot{display:inline-block;width:6px;height:6px;background:var(--sage);border-radius:50%;margin-right:4px;}
+</style>
+</head>
+<body>
+<header>
+  <div><div class="logo">Pandemos <span>CRM — Admin Upload</span></div></div>
+  <a href="index.html" class="btn btn-secondary" style="text-decoration:none;font-size:11px">← Về Dashboard</a>
+</header>
+
+<main>
+  <h2>Upload Data ERP</h2>
+  <p class="sub">Upload file Raw_member_ERP.xlsx mỗi ngày để cập nhật dashboard cho toàn bộ team</p>
+
+  <!-- STEP 1: GitHub Config -->
+  <div class="card">
+    <div class="card-title">⚙ Bước 1 — Cấu hình GitHub Repository</div>
+    <div class="row2">
+      <div class="field">
+        <label>GitHub Username</label>
+        <input type="text" id="ghOwner" placeholder="vd: hoangduy8192">
+      </div>
+      <div class="field">
+        <label>Repository Name</label>
+        <input type="text" id="ghRepo" placeholder="vd: pandemos-dashboard">
+      </div>
+    </div>
+    <div class="field">
+      <label>Branch</label>
+      <input type="text" id="ghBranch" placeholder="main" value="main" style="max-width:200px">
+    </div>
+    <p class="tip">ℹ Thông tin này được lưu tự động vào trình duyệt. Chỉ cần nhập 1 lần.</p>
+  </div>
+
+  <!-- STEP 2: Token -->
+  <div class="card">
+    <div class="card-title">🔑 Bước 2 — GitHub Personal Access Token</div>
+    <div class="field">
+      <label>Token <span id="tokenSavedBadge" style="display:none"><span class="saved-dot"></span>Đã lưu</span></label>
+      <div class="pwd-wrap">
+        <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+        <button class="toggle-pwd" onclick="togglePwd()" title="Hiện/ẩn token">👁</button>
+      </div>
+      <p class="tip">
+        Tạo token tại: <a class="link" href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a><br>
+        Chọn scope: <strong style="color:var(--gold-light)">repo</strong> (Full control of private repositories)<br>
+        Token được lưu trong localStorage của trình duyệt — không gửi đi đâu ngoài GitHub API.
+      </p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveConfig()">💾 Lưu cấu hình</button>
+      <button class="btn btn-danger" onclick="clearConfig()">🗑 Xóa token đã lưu</button>
+    </div>
+    <div id="configStatus" class="status-bar"></div>
+  </div>
+
+  <!-- STEP 3: Upload -->
+  <div class="card">
+    <div class="card-title">📂 Bước 3 — Upload file ERP</div>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+         ondragover="handleDrag(event,true)" ondragleave="handleDrag(event,false)" ondrop="handleDrop(event)">
+      <div class="icon">📊</div>
+      <div class="hint">Kéo thả hoặc <strong>click để chọn file</strong></div>
+      <div class="hint" style="margin-top:4px">Raw_member_ERP.xlsx</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="onFileSelect(this)">
+    <div class="file-selected" id="fileSelected">
+      <span>📄</span>
+      <span class="fname" id="fileName">—</span>
+      <span id="fileSize" style="font-size:11px;color:var(--text-muted)"></span>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--text-muted)" id="progressLabel">Đang xử lý...</span>
+        <span style="font-size:11px;color:var(--gold)" id="progressPct">0%</span>
+      </div>
+      <div class="progress-bg"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <div id="processLog" class="log"></div>
+    <div id="uploadStatus" class="status-bar"></div>
+
+    <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="btnProcess" onclick="processAndUpload()" disabled>
+        ⚡ Xử lý & Upload lên GitHub
+      </button>
+      <button class="btn btn-secondary" onclick="downloadDataJson()" id="btnDownload" style="display:none">
+        ⬇ Tải data.json về máy
+      </button>
+    </div>
+  </div>
+
+  <!-- Info -->
+  <div class="card" style="background:transparent;border-style:dashed">
+    <div class="card-title">ℹ Hướng dẫn nhanh</div>
+    <div style="font-size:12px;color:var(--text-muted);line-height:1.9">
+      1. Mỗi ngày export file <strong style="color:var(--text)">Raw_member_ERP.xlsx</strong> từ ERP (giữ nguyên format sheet)<br>
+      2. Mở trang này → chọn file → nhấn <strong style="color:var(--gold-light)">Xử lý & Upload</strong><br>
+      3. Sau khoảng 10–30 giây, GitHub sẽ cập nhật → <strong style="color:var(--text)">index.html</strong> tự động hiển thị data mới<br>
+      4. Chia sẻ link <code style="color:var(--gold)">https://[username].github.io/[repo]/</code> cho team
+    </div>
+  </div>
+</main>
+
+<script>
+// ── Config persistence ──
+const LS = {
+  get: k => localStorage.getItem('pdm_' + k) || '',
+  set: (k, v) => localStorage.setItem('pdm_' + k, v),
+  del: k => localStorage.removeItem('pdm_' + k)
+};
+
+window.onload = () => {
+  document.getElementById('ghOwner').value  = LS.get('owner');
+  document.getElementById('ghRepo').value   = LS.get('repo');
+  document.getElementById('ghBranch').value = LS.get('branch') || 'main';
+  document.getElementById('ghToken').value  = LS.get('token');
+  if (LS.get('token')) document.getElementById('tokenSavedBadge').style.display = 'inline';
+};
+
+function saveConfig() {
+  const owner  = document.getElementById('ghOwner').value.trim();
+  const repo   = document.getElementById('ghRepo').value.trim();
+  const branch = document.getElementById('ghBranch').value.trim() || 'main';
+  const token  = document.getElementById('ghToken').value.trim();
+  if (!owner || !repo || !token) return showStatus('configStatus', 'error', '⚠ Vui lòng điền đầy đủ Username, Repo và Token');
+  LS.set('owner', owner); LS.set('repo', repo); LS.set('branch', branch); LS.set('token', token);
+  document.getElementById('tokenSavedBadge').style.display = 'inline';
+  showStatus('configStatus', 'success', '✓ Đã lưu cấu hình vào trình duyệt');
+}
+
+function clearConfig() {
+  ['owner','repo','branch','token'].forEach(k => LS.del(k));
+  ['ghOwner','ghRepo','ghToken'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('ghBranch').value = 'main';
+  document.getElementById('tokenSavedBadge').style.display = 'none';
+  showStatus('configStatus', 'error', '🗑 Đã xóa cấu hình');
+}
+
+function togglePwd() {
+  const el = document.getElementById('ghToken');
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function showStatus(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = 'status-bar ' + type;
+  el.style.display = 'flex';
+  el.textContent = msg;
+}
+
+// ── File handling ──
+let selectedFile = null;
+let processedData = null;
+
+function handleDrag(e, on) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.toggle('drag', on);
+}
+function handleDrop(e) {
+  e.preventDefault();
+  handleDrag(e, false);
+  const f = e.dataTransfer.files[0];
+  if (f) loadFile(f);
+}
+function onFileSelect(inp) { if (inp.files[0]) loadFile(inp.files[0]); }
+
+function loadFile(f) {
+  selectedFile = f;
+  document.getElementById('fileName').textContent = f.name;
+  document.getElementById('fileSize').textContent = (f.size / 1024 / 1024).toFixed(2) + ' MB';
+  document.getElementById('fileSelected').style.display = 'flex';
+  document.getElementById('btnProcess').disabled = false;
+  document.getElementById('uploadStatus').style.display = 'none';
+  document.getElementById('processLog').style.display = 'none';
+  processedData = null;
+  document.getElementById('btnDownload').style.display = 'none';
+}
+
+// ── Core processing logic ──
+function log(msg, type='info') {
+  const el = document.getElementById('processLog');
+  el.style.display = 'block';
+  el.innerHTML += `<div class="${type}">${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+function setProgress(pct, label) {
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressLabel').textContent = label;
+}
+
+async function processAndUpload() {
+  if (!selectedFile) return;
+  const owner  = LS.get('owner') || document.getElementById('ghOwner').value.trim();
+  const repo   = LS.get('repo')  || document.getElementById('ghRepo').value.trim();
+  const branch = LS.get('branch') || document.getElementById('ghBranch').value.trim() || 'main';
+  const token  = LS.get('token') || document.getElementById('ghToken').value.trim();
+  if (!token) return showStatus('uploadStatus','error','⚠ Chưa có token. Vui lòng điền token ở Bước 2');
+  if (!owner || !repo) return showStatus('uploadStatus','error','⚠ Chưa có GitHub config. Vui lòng điền ở Bước 1');
+
+  document.getElementById('btnProcess').disabled = true;
+  document.getElementById('processLog').innerHTML = '';
+  document.getElementById('processLog').style.display = 'block';
+  processedData = null;
+
+  try {
+    log('📂 Đọc file Excel...', 'info');
+    setProgress(5, 'Đọc file Excel...');
+    const buf = await selectedFile.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+    log(`✓ Đọc xong — Sheets: ${wb.SheetNames.join(', ')}`, 'ok');
+
+    // ── Parse sheets ──
+    setProgress(15, 'Parse Member Account...');
+    const ma = sheetToObjects(wb, 'Member Account');
+    log(`✓ Member Account: ${ma.length} rows`, 'ok');
+
+    setProgress(25, 'Parse MemberSaleEntries...');
+    const mse = sheetToObjects(wb, 'MemberSaleEntries');
+    log(`✓ MemberSaleEntries: ${mse.length} rows`, 'ok');
+
+    setProgress(35, 'Tính KPIs...');
+    log('⚙ Tính toán KPIs...', 'info');
+    const data = computeAllKPIs(ma, mse);
+    log(`✓ KPIs computed — ${Object.keys(data).length} sections`, 'ok');
+    setProgress(60, 'KPIs xong, chuẩn bị upload...');
+
+    processedData = data;
+    document.getElementById('btnDownload').style.display = 'inline-flex';
+
+    // ── Upload to GitHub ──
+    log('🚀 Upload data.json lên GitHub...', 'info');
+    setProgress(70, 'Kết nối GitHub API...');
+    const jsonStr = JSON.stringify(data, null, 2);
+    const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+
+    // Get current SHA if exists
+    let sha = null;
+    try {
+      const existing = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/data.json?ref=${branch}`, {
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      if (existing.ok) { const j = await existing.json(); sha = j.sha; }
+    } catch(e) {}
+
+    setProgress(80, 'Uploading...');
+    const payload = {
+      message: `CRM data update ${new Date().toISOString().slice(0,10)}`,
+      content: b64,
+      branch: branch
+    };
+    if (sha) payload.sha = sha;
+
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/data.json`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    setProgress(95, 'Xác nhận...');
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(`GitHub API error ${res.status}: ${err.message}`);
+    }
+
+    setProgress(100, 'Hoàn tất!');
+    log(`✅ Upload thành công! data.json đã được cập nhật trên GitHub`, 'ok');
+    log(`🔗 Dashboard: https://${owner}.github.io/${repo}/`, 'info');
+    showStatus('uploadStatus', 'success', `✓ Upload thành công — Dashboard sẽ cập nhật trong vài giây tại https://${owner}.github.io/${repo}/`);
+
+  } catch(err) {
+    log(`❌ Lỗi: ${err.message}`, 'err');
+    showStatus('uploadStatus', 'error', `❌ Lỗi: ${err.message}`);
+    setProgress(0, '');
+  } finally {
+    document.getElementById('btnProcess').disabled = false;
+  }
+}
+
+function downloadDataJson() {
+  if (!processedData) return;
+  const blob = new Blob([JSON.stringify(processedData, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'data.json'; a.click();
+}
+
+// ── Sheet parser ──
+function sheetToObjects(wb, sheetName) {
+  const ws = wb.Sheets[sheetName];
+  if (!ws) return [];
+  return XLSX.utils.sheet_to_json(ws, { defval: null, raw: false });
+}
+
+// ── KPI computation (mirrors Python logic) ──
+function computeAllKPIs(ma, mse) {
+  const TODAY = new Date(); TODAY.setHours(12,0,0,0);
+  const todayStr = TODAY.toISOString().slice(0,10);
+
+  // Parse helper
+  function parseDate(v) {
+    if (!v) return null;
+    const d = new Date(v);
+    return isNaN(d) ? null : d;
+  }
+  function parseNum(v) { return parseFloat(String(v).replace(/,/g,'')) || 0; }
+
+  // ── Prep Member Account ──
+  ma.forEach(r => {
+    r._created = parseDate(r['Created_Date']);
+    r._lastDate = parseDate(r['Last Date']);
+    r._total = parseNum(r['Total_Sales']);
+    r._days = r._lastDate ? Math.floor((TODAY - r._lastDate) / 86400000) : 99999;
+    r._scheme = (r['Scheme_Code'] || 'MEMBER').toUpperCase();
+    r._age = parseNum(r['Tuổi']) || null;
+  });
+
+  // ── Prep Sale Entries ──
+  const mseClean = mse.filter(r => {
+    const amt = parseNum(r['Gross_Amount']);
+    return amt !== 0;
+  });
+  mseClean.forEach(r => {
+    r._date = parseDate(r['Date']);
+    r._amt = Math.abs(parseNum(r['Gross_Amount']));
+    r._ym = r._date ? `${r._date.getFullYear()}-${String(r._date.getMonth()+1).padStart(2,'0')}` : null;
+    r._year = r._date ? r._date.getFullYear() : null;
+    r._memberId = r['Member_Account_No'] || '';
+  });
+
+  // ── Helper: sum/group ──
+  function groupSum(arr, keyFn, valFn) {
+    const m = {};
+    arr.forEach(r => { const k = keyFn(r); if(k) m[k] = (m[k]||0) + valFn(r); });
+    return m;
+  }
+  function groupCount(arr, keyFn) {
+    const m = {};
+    arr.forEach(r => { const k = keyFn(r); if(k) m[k] = (m[k]||0) + 1; });
+    return m;
+  }
+  function groupUniq(arr, keyFn, valFn) {
+    const m = {};
+    arr.forEach(r => {
+      const k = keyFn(r); const v = valFn(r);
+      if (k) { if (!m[k]) m[k] = new Set(); m[k].add(v); }
+    });
+    const out = {};
+    Object.entries(m).forEach(([k,s]) => out[k] = s.size);
+    return out;
+  }
+
+  // ── Last 12 months labels ──
+  function last12Months() {
+    const out = [];
+    for (let i=11; i>=0; i--) {
+      const d = new Date(TODAY);
+      d.setMonth(d.getMonth() - i);
+      out.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    }
+    return out;
+  }
+  const months12 = last12Months();
+  function monthLabel(ym) {
+    if (!ym) return '';
+    const [y,m] = ym.split('-');
+    return `T${parseInt(m)}/${String(y).slice(-2)}`;
+  }
+
+  // Filter to last 12M
+  const cutoff12m = new Date(TODAY); cutoff12m.setFullYear(cutoff12m.getFullYear()-1);
+  const mse12 = mseClean.filter(r => r._date && r._date >= cutoff12m);
+
+  // ── Section 1: Overview ──
+  const totalCustomers = ma.length;
+  const schemeCount = groupCount(ma, r => r._scheme);
+  const newByYm = groupCount(ma.filter(r=>r._created), r => {
+    const d=r._created; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  });
+  const revByYm = groupSum(mseClean, r=>r._ym, r=>r._amt);
+  const billsByYm = groupUniq(mseClean, r=>r._ym, r=>r['Document_No']);
+  const revByStore = groupSum(mseClean, r=>r['Store_No'], r=>r._amt);
+  const revByYear = groupSum(mseClean, r=>String(r._year), r=>r._amt);
+
+  // Tier revenue (join)
+  const maMap = {}; ma.forEach(r => maMap[r['No']] = r._scheme);
+  const revByTier = groupSum(mseClean, r => maMap[r._memberId] || 'MEMBER', r => r._amt);
+
+  // ── Section 2: Retention ──
+  const active = ma.filter(r => r._days <= 180).length;
+  const atRisk = ma.filter(r => r._days > 180 && r._days <= 365).length;
+  const churned = ma.filter(r => r._days > 365).length;
+  const noPurchase = ma.filter(r => r._days >= 99999).length;
+
+  const custTxCount = {}; mseClean.forEach(r => { custTxCount[r._memberId] = (custTxCount[r._memberId]||0)+1; });
+  const repeatCustomers = Object.values(custTxCount).filter(v=>v>=2).length;
+  const repeatRate = (repeatCustomers / totalCustomers * 100).toFixed(1);
+
+  // ── Section 3: Value ──
+  const aovByYm = {};
+  months12.forEach(ym => {
+    const rev = revByYm[ym] || 0;
+    const bills = billsByYm[ym] || 0;
+    aovByYm[ym] = bills > 0 ? Math.round(rev/bills) : 0;
+  });
+
+  const totalRev = Object.values(revByYm).reduce((a,b)=>a+b, 0);
+  const totalBills = Object.values(billsByYm).reduce((a,b)=>a+b, 0);
+  const avgPurchaseFreq = totalBills > 0 ? (mseClean.length / Object.keys(custTxCount).length).toFixed(2) : 0;
+
+  // ── Section 4: Profile ──
+  const ageBins = {'<20':[0,20],'20-24':[20,25],'25-29':[25,30],'30-34':[30,35],'35-39':[35,40],'40-44':[40,45],'45-49':[45,50],'50-59':[50,60],'60+':[60,200]};
+  const ageDist = {};
+  Object.keys(ageBins).forEach(k => {
+    const [lo,hi] = ageBins[k];
+    ageDist[k] = ma.filter(r => r._age !== null && r._age >= lo && r._age < hi).length;
+  });
+  const provinceDist = groupCount(ma.filter(r=>r['Tỉnh']), r=>r['Tỉnh']);
+  const topProvinces = Object.entries(provinceDist).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  // ── Section 5: Near Upgrade (rolling 12M from today) ──
+  const NEAR_PCT = 0.80;
+  const THRESHOLDS = { MEMBER: 3000000, SILVER: 6000000, GOLD: 20000000 };
+
+  function calcNearUpgrade(refDate) {
+    const cutoff = new Date(refDate); cutoff.setFullYear(cutoff.getFullYear()-1);
+    const mseP = mseClean.filter(r => r._date && r._date >= cutoff && r._date <= refDate);
+    const rev = {}; mseP.forEach(r => rev[r._memberId] = (rev[r._memberId]||0) + r._amt);
+    const result = {};
+    ['MEMBER','SILVER','GOLD'].forEach(tier => {
+      const upper = THRESHOLDS[tier];
+      const lower = upper * NEAR_PCT;
+      const subset = ma.filter(r => r._scheme === tier).map(r => {
+        const r12 = rev[r['No']] || 0;
+        return { no: r['No'], rev12: r12, gap: upper - r12, pct: Math.round(r12/upper*1000)/10, last: r['Last Date'] };
+      }).filter(r => r.rev12 >= lower && r.rev12 < upper)
+        .sort((a,b) => b.rev12 - a.rev12);
+      result[tier] = subset;
+    });
+    return result;
+  }
+
+  const nuToday = calcNearUpgrade(TODAY);
+
+  // Daily 30 days
+  const nuDaily = { labels:[], silver:[], gold:[], plat:[] };
+  for (let i=30; i>=0; i--) {
+    const d = new Date(TODAY); d.setDate(d.getDate()-i);
+    const r = calcNearUpgrade(d);
+    nuDaily.labels.push(`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`);
+    nuDaily.silver.push(r['MEMBER'].length);
+    nuDaily.gold.push(r['SILVER'].length);
+    nuDaily.plat.push(r['GOLD'].length);
+  }
+
+  // Weekly 12 weeks
+  const nuWeekly = { labels:[], silver:[], gold:[], plat:[] };
+  for (let i=11; i>=0; i--) {
+    const d = new Date(TODAY); d.setDate(d.getDate()-i*7);
+    const r = calcNearUpgrade(d);
+    const wk = getISOWeek(d);
+    nuWeekly.labels.push(`W${wk}`);
+    nuWeekly.silver.push(r['MEMBER'].length);
+    nuWeekly.gold.push(r['SILVER'].length);
+    nuWeekly.plat.push(r['GOLD'].length);
+  }
+
+  // Monthly 12 months
+  const nuMonthly = { labels:[], silver:[], gold:[], plat:[] };
+  for (let i=11; i>=0; i--) {
+    const d = new Date(TODAY); d.setMonth(d.getMonth()-i);
+    d.setDate(Math.min(28, d.getDate()));
+    const r = calcNearUpgrade(d);
+    nuMonthly.labels.push(monthLabel(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`));
+    nuMonthly.silver.push(r['MEMBER'].length);
+    nuMonthly.gold.push(r['SILVER'].length);
+    nuMonthly.plat.push(r['GOLD'].length);
+  }
+
+  function getISOWeek(d) {
+    const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = dt.getUTCDay() || 7;
+    dt.setUTCDate(dt.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(dt.getUTCFullYear(),0,1));
+    return Math.ceil((((dt - yearStart) / 86400000) + 1)/7);
+  }
+
+  // Sort stores
+  const sortedStores = Object.entries(revByStore).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  return {
+    meta: { updatedAt: todayStr, totalCustomers },
+    overview: {
+      totalCustomers,
+      schemeCount,
+      newByMonth: months12.map(ym => ({ ym, label: monthLabel(ym), count: newByYm[ym]||0 })),
+      revByMonth: months12.map(ym => ({ ym, label: monthLabel(ym), rev: Math.round(revByYm[ym]||0) })),
+      stores: sortedStores.map(([k,v]) => ({ store: k, rev: Math.round(v) })),
+      revByYear: Object.entries(revByYear).sort((a,b)=>a[0]-b[0]).map(([y,v]) => ({ year: y, rev: Math.round(v) })),
+      revByTier: Object.entries(revByTier).map(([t,v]) => ({ tier: t, rev: Math.round(v) }))
+    },
+    retention: {
+      active, atRisk, churned, noPurchase, totalCustomers,
+      activeRate: (active/totalCustomers*100).toFixed(1),
+      atRiskRate: (atRisk/totalCustomers*100).toFixed(1),
+      churnRate: (churned/totalCustomers*100).toFixed(1),
+      repeatCustomers, repeatRate,
+      billsByMonth: months12.map(ym => ({ ym, label: monthLabel(ym), bills: billsByYm[ym]||0 }))
+    },
+    value: {
+      totalRev: Math.round(totalRev),
+      avgPurchaseFreq,
+      aovByMonth: months12.map(ym => ({ ym, label: monthLabel(ym), aov: aovByYm[ym]||0 })),
+      revByTier: Object.entries(revByTier).map(([t,v]) => ({ tier: t, rev: Math.round(v) })),
+      storesPct: sortedStores.map(([k,v]) => ({ store: k, pct: +(v/totalRev*100).toFixed(1) })),
+      revByYear: Object.entries(revByYear).sort((a,b)=>a[0]-b[0]).map(([y,v]) => ({ year: y, rev: Math.round(v) }))
+    },
+    profile: {
+      ageDist,
+      topProvinces: topProvinces.map(([k,v]) => ({ province: k, count: v }))
+    },
+    nearUpgrade: {
+      today: {
+        near_silver: nuToday['MEMBER'].length,
+        near_gold: nuToday['SILVER'].length,
+        near_plat: nuToday['GOLD'].length,
+        list_silver: nuToday['MEMBER'].slice(0,20),
+        list_gold: nuToday['SILVER'].slice(0,20),
+        list_plat: nuToday['GOLD'].slice(0,20)
+      },
+      daily: nuDaily,
+      weekly: nuWeekly,
+      monthly: nuMonthly
+    }
+  };
+}
+</script>
+</body>
+</html>
