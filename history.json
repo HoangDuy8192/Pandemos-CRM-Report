@@ -1,0 +1,13 @@
+{
+  "snapshots": [
+    {
+      "date": "2026-08-06",
+      "file": "data_2026-08-06.json",
+      "totalCustomers": 10675,
+      "totalRev": 64870312348,
+      "active": 936,
+      "nearUpgrade": 550
+    }
+  ],
+  "lastUpdated": "2026-08-06"
+}
