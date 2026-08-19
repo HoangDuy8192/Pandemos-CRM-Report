@@ -823,9 +823,11 @@ function applyExpDate() {
   else if (EXP.preset === 'd30') { from = new Date(now.getFullYear(), now.getMonth(), now.getDate()-30); to = today; label = '30 ngày gần nhất'; }
   else if (EXP.preset === 'd60') { from = new Date(now.getFullYear(), now.getMonth(), now.getDate()-60); to = today; label = '60 ngày gần nhất'; }
   else if (EXP.preset === 'd90') { from = new Date(now.getFullYear(), now.getMonth(), now.getDate()-90); to = today; label = '90 ngày gần nhất'; }
-  else { // custom
-    const f = document.getElementById('expFrom').value;
-    const t = document.getElementById('expTo').value;
+  else {
+    const fEl = document.getElementById('expFrom');
+    const tEl = document.getElementById('expTo');
+    const f = fEl ? fEl.value : '';
+    const t = tEl ? tEl.value : '';
     from = f ? new Date(f) : new Date('2000-01-01');
     to   = t ? new Date(t + 'T23:59:59') : today;
     label = f && t ? `${f} → ${t}` : f ? `Từ ${f}` : 'Tùy chọn';
@@ -834,10 +836,14 @@ function applyExpDate() {
 
   const catLabel = EXP.cats.size === 0 ? 'Tất cả category' : [...EXP.cats].join('+');
   const isFiltered = EXP.preset !== 'all' || EXP.cats.size > 0;
+
+  // Guard DOM — elements only exist when Export tab has been rendered
   const badge = document.getElementById('expDateBadge');
-  badge.style.display = isFiltered ? 'flex' : 'none';
-  document.getElementById('expDateBadgeText').textContent = `${label} · ${catLabel}`;
-  document.getElementById('expDateRangeLbl').textContent = `${label} · ${catLabel}`;
+  if(badge) badge.style.display = isFiltered ? 'flex' : 'none';
+  const badgeText = document.getElementById('expDateBadgeText');
+  if(badgeText) badgeText.textContent = `${label} · ${catLabel}`;
+  const rangeLbl = document.getElementById('expDateRangeLbl');
+  if(rangeLbl) rangeLbl.textContent = `${label} · ${catLabel}`;
 
   buildExpRows();
 }
@@ -1080,7 +1086,6 @@ async function loadData(){
     buildCatButtons();
     buildExpCatPills();
     applyFilter();
-    applyExpDate(); // init export with all-time
     document.getElementById('loadingOverlay').style.display='none';
   }catch(e){
     document.getElementById('loadingText').innerHTML=`<span style="color:#e89a90">❌ ${e.message}</span><br><br><a href="upload.html" style="color:var(--gold)">→ Upload data</a>`;
