@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM KPI Dashboard – Pandemos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@300;400;500;600;700&display=swap');
+:root{--bg:#0f0e0d;--surface:#1a1916;--surface2:#211f1c;--border:#2e2b26;--gold:#c9a84c;--gold-light:#e8c97a;--gold-dim:rgba(201,168,76,.15);--rose:#c46b5e;--sage:#7a9e7e;--text:#f0ebe3;--text-muted:#8a8278;--text-dim:#5a5650;--platinum:#d4d0c8;--silver:#9ea6b4;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;min-height:100vh;}
+#loadingOverlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+header{background:linear-gradient(135deg,#1a1916,#211f1c,#1e1b14);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{font-family:'DM Serif Display',serif;font-size:19px;color:var(--gold-light);}
+.logo span{color:var(--text-muted);font-size:10px;font-family:'Inter',sans-serif;display:block;letter-spacing:.15em;text-transform:uppercase;}
+.btn-sm{padding:6px 13px;border-radius:7px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--border);background:transparent;color:var(--text-muted);text-decoration:none;transition:all .2s;cursor:pointer;}
+.btn-sm:hover{color:var(--gold-light);border-color:var(--gold);}
+.tabs{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--gold-light);border-bottom-color:var(--gold);}
+/* ── Filter Bar ── */
+#filterBar{background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 24px;display:none;flex-direction:column;gap:0;}
+#filterBar.show{display:flex;}
+.fb-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:5px 0;}
+.fb-row+.fb-row{border-top:1px solid rgba(46,43,38,.6);}
+.fb-lbl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);min-width:88px;flex-shrink:0;}
+.fb-pills{display:flex;gap:4px;flex-wrap:wrap;flex:1;}
+.pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-muted);transition:all .15s;white-space:nowrap;}
+.pill:hover{color:var(--text);}
+.pill.on{background:var(--gold-dim);color:var(--gold-light);border-color:var(--gold);}
+.fb-cats{display:flex;gap:4px;flex-wrap:wrap;max-height:66px;overflow-y:auto;flex:1;}
+.toggrp{display:flex;gap:4px;}
+.tog{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-muted);transition:all .15s;}
+.tog:hover{color:var(--text);}
+.tog.on{background:var(--gold-dim);color:var(--gold-light);border-color:var(--gold);}
+#filterBadge{display:none;align-items:center;gap:6px;margin-left:auto;padding:3px 10px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.25);border-radius:20px;font-size:10px;color:var(--gold-light);white-space:nowrap;}
+#filterBadge button{background:none;border:none;color:var(--rose);cursor:pointer;font-size:11px;}
+/* ── Layout ── */
+main{padding:20px 24px;max-width:1600px;margin:0 auto;}
+.section{display:none;}.section.active{display:block;}
+.row{display:grid;gap:14px;margin-bottom:16px;}
+.c4{grid-template-columns:repeat(4,1fr);}.c3{grid-template-columns:repeat(3,1fr);}.c2{grid-template-columns:repeat(2,1fr);}.c1{grid-template-columns:1fr;}
+@media(max-width:1100px){.c4{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:700px){.c4,.c3,.c2{grid-template-columns:1fr;}}
+/* ── Cards ── */
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);opacity:.4;}
+.kpi.accent::before{opacity:1;}
+.kpi-lbl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:7px;}
+.kpi-val{font-family:'DM Serif Display',serif;font-size:28px;color:var(--text);line-height:1;}
+.kpi-val.lg{font-size:34px;}
+.kpi-sub{font-size:11px;color:var(--text-muted);margin-top:5px;}
+.kpi-tag{display:inline-flex;font-size:10px;padding:2px 8px;border-radius:20px;margin-top:7px;font-weight:600;}
+.good{background:rgba(122,158,126,.18);color:#9ed0a2;}.warn{background:rgba(196,107,94,.18);color:#e89a90;}.info{background:rgba(91,141,184,.15);color:#8bbddf;}
+.cc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;}
+.cc h3{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;}
+.cc h3 em{font-style:normal;color:var(--gold);margin-left:6px;font-size:12px;font-family:'DM Serif Display',serif;}
+canvas{max-height:220px;}
+.seg-table{width:100%;border-collapse:collapse;}
+.seg-table th{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);}
+.seg-table td{padding:8px 10px;font-size:11px;border-bottom:1px solid rgba(46,43,38,.4);vertical-align:middle;}
+.seg-table tr:hover td{background:rgba(201,168,76,.03);}
+.tb{display:inline-block;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+.tp{background:rgba(212,208,200,.15);color:var(--platinum);}.tg{background:rgba(201,168,76,.2);color:var(--gold-light);}.ts{background:rgba(158,166,180,.15);color:var(--silver);}.tm{background:rgba(106,138,110,.15);color:#9ed0a2;}
+.bar-w{display:flex;align-items:center;gap:7px;}.bar-bg{flex:1;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;}.bar-f{height:100%;border-radius:3px;}.bar-p{font-size:10px;color:var(--text-muted);min-width:32px;text-align:right;}
+.donut-w{position:relative;width:160px;height:160px;margin:0 auto;}
+.donut-c{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;}
+.donut-c .big{font-family:'DM Serif Display',serif;font-size:20px;color:var(--text);line-height:1;}
+.donut-c .sm{font-size:10px;color:var(--text-muted);}
+.sh{display:flex;align-items:baseline;gap:10px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.sh h2{font-family:'DM Serif Display',serif;font-size:17px;}
+.sh p{font-size:11px;color:var(--text-muted);}
+.nu-hero{display:flex;flex-direction:column;align-items:center;padding:14px 8px 8px;}
+.nu-val{font-family:'DM Serif Display',serif;font-size:44px;line-height:1;}
+.nu-lbl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-top:3px;}
+.nu-hint{font-size:11px;color:var(--text-muted);margin-top:5px;text-align:center;}
+.ftag{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-muted);transition:all .15s;}
+.ftag.active{background:var(--gold-dim);color:var(--gold-light);border-color:var(--gold);}
+</style>
+</head>
+<body>
+<div id="loadingOverlay">
+  <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--gold-light)">Pandemos</div>
+  <div class="spinner"></div>
+  <div id="loadingText" style="font-size:12px;color:var(--text-muted)">Đang tải dữ liệu...</div>
+</div>
+<header>
+  <div><div class="logo">Pandemos <span>CRM Intelligence</span></div></div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="color:var(--text-muted);font-size:11px;text-align:right"><strong style="color:var(--text);font-size:12px">CRM KPI Dashboard</strong><br><span id="hUpdated">—</span></div>
+    <a href="upload.html" class="btn-sm">⬆ Upload</a>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('overview',this)">Tổng Quan</div>
+  <div class="tab" onclick="showTab('retention',this)">Retention</div>
+  <div class="tab" onclick="showTab('value',this)">Customer Value</div>
+  <div class="tab" onclick="showTab('loyalty',this)">Loyalty</div>
+  <div class="tab" onclick="showTab('profile',this)">Customer Profile</div>
+  <div class="tab" onclick="showTab('nearupgrade',this)">Near Upgrade ✦</div>
+  <div class="tab" onclick="showTab('export',this)">⬇ Export</div>
+</div>
+
+<!-- Filter Bar -->
+<div id="filterBar">
+  <div class="fb-row">
+    <div class="fb-lbl">📅 Thời gian</div>
+    <div class="fb-pills" id="fbDatePills">
+      <button class="pill on" data-preset="alltime" onclick="setPreset('alltime',this)">All time</button>
+      <button class="pill" data-preset="d7"  onclick="setPreset('d7',this)">7 ngày</button>
+      <button class="pill" data-preset="d30" onclick="setPreset('d30',this)">30 ngày</button>
+      <button class="pill" data-preset="d60" onclick="setPreset('d60',this)">60 ngày</button>
+      <button class="pill" data-preset="d90" onclick="setPreset('d90',this)">90 ngày</button>
+    </div>
+    <div style="width:1px;height:18px;background:var(--border);flex-shrink:0"></div>
+    <div class="fb-lbl" style="min-width:auto">📊</div>
+    <div class="toggrp">
+      <button class="tog" id="gD" onclick="setGran('daily',this)">Daily</button>
+      <button class="tog on" id="gW" onclick="setGran('weekly',this)">Weekly</button>
+      <button class="tog" id="gM" onclick="setGran('monthly',this)">Monthly</button>
+    </div>
+    <div id="filterBadge"><span id="fbBadgeText">—</span><button onclick="resetFilter()">✕</button></div>
+  </div>
+  <div class="fb-row">
+    <div class="fb-lbl">🏷 Category</div>
+    <div class="fb-cats" id="fbCats">
+      <button class="pill on" data-cat="ALL" onclick="toggleCat('ALL',this)">Tất cả</button>
+    </div>
+  </div>
+</div>
+
+<main>
+<!-- TỔNG QUAN -->
+<div class="section active" id="tab-overview">
+  <div class="sh"><h2>Database Growth</h2><p>All time · không bị ảnh hưởng bởi filter</p></div>
+  <div class="row c4">
+    <div class="kpi accent"><div class="kpi-lbl">Tổng khách hàng</div><div class="kpi-val lg" id="v-total">—</div><div class="kpi-sub">Toàn bộ database</div><div class="kpi-tag info">▲ All time</div></div>
+    <div class="kpi"><div class="kpi-lbl">Khách mới — tháng này</div><div class="kpi-val" id="v-newM">—</div><div class="kpi-sub" id="v-newSub">—</div><div class="kpi-tag" id="v-newMoM">—</div></div>
+    <div class="kpi"><div class="kpi-lbl">Tỷ lệ thu thập SĐT</div><div class="kpi-val">100%</div><div class="kpi-sub">Bills có SĐT / tổng bill</div><div class="kpi-tag good">✓ Đạt >95%</div></div>
+    <div class="kpi"><div class="kpi-lbl">Repeat Purchase Rate</div><div class="kpi-val" id="v-rprAT">—</div><div class="kpi-sub" id="v-rprSub">—</div><div class="kpi-tag" id="v-rprTag">—</div></div>
+  </div>
+  <div class="row c2">
+    <div class="cc"><h3>Khách hàng mới <em>theo tháng</em></h3><canvas id="c-newM"></canvas></div>
+    <div class="cc"><h3>Doanh thu CRM <em>12 tháng gần nhất</em></h3><canvas id="c-revAT"></canvas></div>
+  </div>
+  <div class="row c2">
+    <div class="cc">
+      <h3>Phân hạng thành viên</h3>
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <div class="donut-w" style="flex-shrink:0"><canvas id="c-tierD" style="max-height:160px"></canvas><div class="donut-c"><div class="big" id="v-tierN">—</div><div class="sm">KH</div></div></div>
+        <div style="flex:1;min-width:180px"><table class="seg-table"><thead><tr><th>Hạng</th><th>KH</th><th>Tỷ lệ</th><th>DT all time</th></tr></thead><tbody id="tierTbody"></tbody></table></div>
+      </div>
+    </div>
+    <div class="cc"><h3>Doanh thu theo Store <em>all time</em></h3><canvas id="c-storeAT"></canvas></div>
+  </div>
+</div>
+
+<!-- RETENTION -->
+<div class="section" id="tab-retention">
+  <div class="sh"><h2>Retention & Engagement</h2><p id="p-ret">—</p></div>
+  <div class="row c4">
+    <div class="kpi accent"><div class="kpi-lbl">KH có giao dịch</div><div class="kpi-val lg" id="v-buyers">—</div><div class="kpi-sub" id="v-buyersSub">—</div><div class="kpi-tag info" id="v-buyersTag">—</div></div>
+    <div class="kpi"><div class="kpi-lbl">Tổng bills</div><div class="kpi-val" id="v-bills">—</div><div class="kpi-sub" id="v-billsSub">—</div><div class="kpi-tag info">Đơn hàng trong kỳ</div></div>
+    <div class="kpi"><div class="kpi-lbl">Repeat Purchase Rate</div><div class="kpi-val" id="v-rpr">—</div><div class="kpi-sub" id="v-rprSubF">—</div><div class="kpi-tag" id="v-rprTagF">—</div></div>
+    <div class="kpi"><div class="kpi-lbl">AOV trong kỳ</div><div class="kpi-val" id="v-aovR">—</div><div class="kpi-sub" id="v-aovRSub">—</div><div class="kpi-tag info">VND / đơn</div></div>
+  </div>
+  <div class="row c2">
+    <div class="cc"><h3>KH có GD <em id="lbl-retB">theo tuần</em></h3><canvas id="c-retBuyers"></canvas></div>
+    <div class="cc"><h3>Doanh thu <em id="lbl-retR">theo tuần</em></h3><canvas id="c-retRev"></canvas></div>
+  </div>
+  <div class="row c2">
+    <div class="cc"><h3>Số bills <em id="lbl-retBi">theo tuần</em></h3><canvas id="c-retBills"></canvas></div>
+    <div class="cc">
+      <h3>Trạng thái KH <em>trong kỳ lọc</em></h3>
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center">
+        <div class="donut-w" style="flex-shrink:0"><canvas id="c-statusD" style="max-height:160px"></canvas><div class="donut-c"><div class="big" id="v-statusN">—</div><div class="sm">KH</div></div></div>
+        <div id="statusLegend" style="font-size:11px;color:var(--text-muted);display:flex;flex-direction:column;gap:5px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMER VALUE -->
+<div class="section" id="tab-value">
+  <div class="sh"><h2>Customer Value</h2><p id="p-val">—</p></div>
+  <div class="row c4">
+    <div class="kpi accent"><div class="kpi-lbl">Tổng doanh thu</div><div class="kpi-val lg" id="v-rev">—</div><div class="kpi-sub" id="v-revSub">—</div><div class="kpi-tag info" id="v-revTag">—</div></div>
+    <div class="kpi"><div class="kpi-lbl">AOV</div><div class="kpi-val" id="v-aov">—</div><div class="kpi-sub" id="v-aovSub">—</div><div class="kpi-tag info">VND / đơn</div></div>
+    <div class="kpi"><div class="kpi-lbl">Tổng bills</div><div class="kpi-val" id="v-billsV">—</div><div class="kpi-sub" id="v-billsVSub">—</div><div class="kpi-tag info">Đơn hàng</div></div>
+    <div class="kpi"><div class="kpi-lbl">Avg freq / KH</div><div class="kpi-val" id="v-freq">—</div><div class="kpi-sub" id="v-freqSub">—</div><div class="kpi-tag info">Lần mua</div></div>
+  </div>
+  <div class="row c2">
+    <div class="cc"><h3>Doanh thu <em id="lbl-valR">theo tuần</em></h3><canvas id="c-valRev"></canvas></div>
+    <div class="cc"><h3>AOV <em id="lbl-valA">theo tuần</em></h3><canvas id="c-valAov"></canvas></div>
+  </div>
+  <div class="row c2">
+    <div class="cc">
+      <h3>Doanh thu theo hạng thẻ</h3>
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center">
+        <div class="donut-w" style="flex-shrink:0"><canvas id="c-revTD" style="max-height:160px"></canvas><div class="donut-c"><div class="big" id="v-revTN">—</div><div class="sm">VND</div></div></div>
+        <div><table class="seg-table"><thead><tr><th>Hạng</th><th>Doanh thu</th><th>%</th></tr></thead><tbody id="revTierTbody"></tbody></table></div>
+      </div>
+    </div>
+    <div class="cc"><h3>Doanh thu theo Store <em>% đóng góp</em></h3><canvas id="c-storeP" style="max-height:260px"></canvas></div>
+  </div>
+  <div class="row c1">
+    <div class="cc"><h3>Doanh thu theo Category</h3><canvas id="c-catRev"></canvas></div>
+  </div>
+</div>
+
+<!-- LOYALTY -->
+<div class="section" id="tab-loyalty">
+  <div class="sh"><h2>Loyalty Program</h2><p id="p-loy">—</p></div>
+  <div class="row c4">
+    <div class="kpi accent"><div class="kpi-lbl">Total Members</div><div class="kpi-val lg" id="v-totalM">—</div><div class="kpi-sub">Database all time</div><div class="kpi-tag info">All time</div></div>
+    <div class="kpi"><div class="kpi-lbl">KH Active (all time)</div><div class="kpi-val" id="v-activeM">—</div><div class="kpi-sub" id="v-activeMSub">—</div><div class="kpi-tag warn">Mục tiêu >60%</div></div>
+    <div class="kpi"><div class="kpi-lbl">VIP (Plat+Gold)</div><div class="kpi-val" id="v-vip">—</div><div class="kpi-sub" id="v-vipSub">—</div><div class="kpi-tag good" id="v-vipTag">—</div></div>
+    <div class="kpi"><div class="kpi-lbl">KH mua trong kỳ</div><div class="kpi-val" id="v-loyB">—</div><div class="kpi-sub" id="v-loyBSub">—</div><div class="kpi-tag info">Kỳ đã lọc</div></div>
+  </div>
+  <div class="row c2">
+    <div class="cc"><h3>KH mua theo hạng <em id="lbl-loyB">theo tuần</em></h3><canvas id="c-loyTier"></canvas></div>
+    <div class="cc"><h3>Doanh thu theo hạng <em id="lbl-loyR">theo tuần</em></h3><canvas id="c-loyRev"></canvas></div>
+  </div>
+  <div class="row c1">
+    <div class="cc"><h3>Chiến lược theo hạng thành viên</h3><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:8px" id="loyStrat"></div></div>
+  </div>
+</div>
+
+<!-- CUSTOMER PROFILE -->
+<div class="section" id="tab-profile">
+  <div class="sh"><h2>Customer Profile</h2><p id="p-prof">—</p></div>
+  <div class="row c3">
+    <div class="kpi"><div class="kpi-lbl">Nhóm tuổi đông nhất</div><div class="kpi-val" id="v-topAge">—</div><div class="kpi-sub">KH có GD trong kỳ</div></div>
+    <div class="kpi"><div class="kpi-lbl">Thị trường #1</div><div class="kpi-val" id="v-p1">—</div><div class="kpi-sub" id="v-p1Sub">—</div></div>
+    <div class="kpi"><div class="kpi-lbl">Thị trường #2</div><div class="kpi-val" id="v-p2">—</div><div class="kpi-sub" id="v-p2Sub">—</div></div>
+  </div>
+  <div class="row c2">
+    <div class="cc"><h3>Phân bổ độ tuổi <em>KH có GD trong kỳ</em></h3><canvas id="c-age" style="max-height:240px"></canvas></div>
+    <div class="cc"><h3>Top tỉnh/thành phố <em>KH có GD trong kỳ</em></h3><canvas id="c-prov" style="max-height:240px"></canvas></div>
+  </div>
+  <div class="row c1">
+    <div class="cc"><h3>Doanh thu theo Category <em id="lbl-profC">theo tuần</em></h3><canvas id="c-profCat"></canvas></div>
+  </div>
+</div>
+
+<!-- NEAR UPGRADE -->
+<div class="section" id="tab-nearupgrade">
+  <div class="sh"><h2>Near Upgrade ✦</h2><p id="p-nu">KH trong vùng 80–100% ngưỡng lên hạng · tính theo kỳ đã lọc</p></div>
+  <div class="row c3" id="nuHeroCards"></div>
+  <div class="row c1">
+    <div class="cc">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <h3 style="margin:0">Xu hướng Near Upgrade <em id="lbl-nuT">theo tuần</em></h3>
+        <div class="toggrp">
+          <button class="tog on" onclick="setNUTier('all',this)">Tất cả</button>
+          <button class="tog" onclick="setNUTier('silver',this)">→Silver</button>
+          <button class="tog" onclick="setNUTier('gold',this)">→Gold</button>
+          <button class="tog" onclick="setNUTier('plat',this)">→Platinum</button>
+        </div>
+      </div>
+      <canvas id="c-nuTrend" style="max-height:220px"></canvas>
+    </div>
+  </div>
+  <div class="row c1">
+    <div class="cc">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <div><h3 id="nuTblTitle" style="margin:0;display:inline">Top KH gần lên Silver</h3><span id="nuTblCount" style="margin-left:6px;font-size:10px;color:var(--text-muted)">—</span></div>
+        <div class="toggrp" id="nuTblToggle"></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="seg-table" style="min-width:640px">
+          <thead><tr><th>#</th><th>Mã KH</th><th>Hạng → Mục tiêu</th><th style="text-align:right">DT kỳ lọc (VND)</th><th style="text-align:right">Còn thiếu</th><th>Tiến độ</th><th>Mua cuối</th></tr></thead>
+          <tbody id="nuTblBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT -->
+<div class="section" id="tab-export">
+  <div class="sh"><h2>Export Excel</h2><p>Filter bar ở trên áp dụng tự động · KH có GD trong kỳ lọc</p></div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:16px;position:relative">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);border-radius:10px 10px 0 0;opacity:.8"></div>
+    <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px">🎛 Bộ lọc KH</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end;flex-wrap:wrap">
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px">Hạng thẻ</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap" id="expTier">
+          <button class="ftag active" data-v="ALL" onclick="setExpF('tier','ALL',this)">Tất cả</button>
+          <button class="ftag" data-v="MEMBER" onclick="setExpF('tier','MEMBER',this)">Member</button>
+          <button class="ftag" data-v="SILVER" onclick="setExpF('tier','SILVER',this)">Silver</button>
+          <button class="ftag" data-v="GOLD" onclick="setExpF('tier','GOLD',this)">Gold</button>
+          <button class="ftag" data-v="PLATINUM" onclick="setExpF('tier','PLATINUM',this)">Platinum</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px">Trạng thái</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap" id="expStatus">
+          <button class="ftag active" data-v="ALL" onclick="setExpF('status','ALL',this)">Tất cả</button>
+          <button class="ftag" data-v="Active" onclick="setExpF('status','Active',this)">Active</button>
+          <button class="ftag" data-v="At-Risk" onclick="setExpF('status','At-Risk',this)">At-Risk</button>
+          <button class="ftag" data-v="Churned" onclick="setExpF('status','Churned',this)">Churned</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px">Near Upgrade</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap" id="expNear">
+          <button class="ftag active" data-v="ALL" onclick="setExpF('near','ALL',this)">Tất cả</button>
+          <button class="ftag" data-v="Near Silver" onclick="setExpF('near','Near Silver',this)">→Silver</button>
+          <button class="ftag" data-v="Near Gold" onclick="setExpF('near','Near Gold',this)">→Gold</button>
+          <button class="ftag" data-v="Near Platinum" onclick="setExpF('near','Near Platinum',this)">→Platinum</button>
+        </div>
+      </div>
+      <button onclick="downloadExcel()" style="padding:9px 16px;border-radius:8px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;border:none;background:var(--gold);color:#1a1500;white-space:nowrap">⬇ Tải Excel</button>
+    </div>
+    <div style="margin-top:10px;padding:9px 12px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <div style="font-size:12px;color:var(--text-muted)">Kết quả: <strong style="color:var(--gold-light);font-size:14px;font-family:'DM Serif Display',serif" id="expCount">—</strong> khách</div>
+      <div style="font-size:10px;color:var(--text-dim)">4 sheets: Near Upgrade · Win-back · Toàn bộ KH · Tóm tắt</div>
+    </div>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:6px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted)">Xem trước <span id="expPrevLbl" style="color:var(--gold)"></span></div>
+      <div style="font-size:10px;color:var(--text-dim)">20 dòng đầu</div>
+    </div>
+    <div style="overflow-x:auto"><table class="seg-table" style="min-width:880px"><thead id="expHead"></thead><tbody id="expBody"></tbody></table></div>
+  </div>
+</div>
+</main>
+
+<script>
+// ════════ CONFIG ════════
+const GITHUB_OWNER  = 'HoangDuy8192';
+const GITHUB_REPO   = 'Pandemos-CRM-Report';
+const GITHUB_BRANCH = 'main';
+const DATA_URL = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/data.json`;
+
+Chart.defaults.color='#8a8278'; Chart.defaults.borderColor='#2e2b26'; Chart.defaults.font.family='Inter'; Chart.defaults.font.size=11;
+const C={GOLD:'#c9a84c',GOLD2:'#e8c97a',ROSE:'#c46b5e',SAGE:'#7a9e7e',SILVER:'#9ea6b4',PLAT:'#d4d0c8'};
+const TC={MEMBER:C.SAGE,SILVER:C.SILVER,GOLD:C.GOLD,PLATINUM:C.PLAT};
+const TB={MEMBER:'tm',SILVER:'ts',GOLD:'tg',PLATINUM:'tp'};
+
+function fmt(n){if(!n&&n!==0)return'—';n=Math.abs(n);if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(0)+'K';return Math.round(n);}
+function fmtVND(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n||0));}
+
+let D=null;
+// ════════ STATE ════════
+const F={preset:'alltime',gran:'weekly',cats:new Set()};
+const EF={tier:'ALL',status:'ALL',near:'ALL'};
+const FILTER_TABS=new Set(['retention','value','loyalty','profile','nearupgrade','export']);
+
+function showTab(id,el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('filterBar').classList.toggle('show',FILTER_TABS.has(id));
+}
+
+// ════════ FILTER CONTROLS ════════
+function setPreset(preset,el){
+  F.preset=preset;
+  document.querySelectorAll('#fbDatePills .pill').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  applyFilter();
+}
+function setGran(g,el){
+  F.gran=g;
+  document.querySelectorAll('.toggrp .tog').forEach(b=>{if(['gD','gW','gM'].includes(b.id))b.classList.remove('on');});
+  el.classList.add('on');
+  applyFilter();
+}
+function toggleCat(cat,el){
+  if(cat==='ALL'){F.cats.clear();document.querySelectorAll('#fbCats .pill').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
+  else{document.querySelector('#fbCats .pill[data-cat="ALL"]').classList.remove('on');el.classList.toggle('on');if(el.classList.contains('on'))F.cats.add(cat);else F.cats.delete(cat);if(F.cats.size===0)document.querySelector('#fbCats .pill[data-cat="ALL"]').classList.add('on');}
+  applyFilter();
+}
+function resetFilter(){F.preset='alltime';F.cats.clear();document.querySelectorAll('#fbDatePills .pill').forEach(b=>b.classList.remove('on'));document.querySelector('#fbDatePills .pill[data-preset="alltime"]').classList.add('on');document.querySelectorAll('#fbCats .pill').forEach(b=>b.classList.remove('on'));const a=document.querySelector('#fbCats .pill[data-cat="ALL"]');if(a)a.classList.add('on');document.getElementById('filterBadge').style.display='none';applyFilter();}
+
+function buildCatButtons(){
+  if(!D?.categories?.length) return;
+  const wrap=document.getElementById('fbCats');
+  wrap.innerHTML=`<button class="pill on" data-cat="ALL" onclick="toggleCat('ALL',this)">Tất cả</button>`;
+  D.categories.forEach(cat=>{const b=document.createElement('button');b.className='pill';b.dataset.cat=cat;b.textContent=cat;b.onclick=function(){toggleCat(cat,this);};wrap.appendChild(b);});
+}
+
+// ════════ GET CURRENT DATA SLICE ════════
+function getSlice(){
+  if(!D) return null;
+  const sum=D.summaries[F.preset];
+  const periods=D.periodData[F.preset]?.[F.gran]||[];
+
+  // Filter periods by category if needed
+  let filteredPeriods=periods;
+  if(F.cats.size>0){
+    filteredPeriods=periods.map(p=>{
+      const catRev={}; let rev=0,bills=0,buyers=0;
+      F.cats.forEach(cat=>{
+        if(p.catRev[cat]){rev+=p.catRev[cat];}
+      });
+      // bills/buyers not per-cat in periods, use proportion
+      const totalRevP=Object.values(p.catRev).reduce((s,v)=>s+v,0);
+      const ratio=totalRevP>0?rev/totalRevP:0;
+      return{...p,rev:Math.round(rev),bills:Math.round(p.bills*ratio),buyers:Math.round(p.buyers*ratio),aov:Math.round(p.bills*ratio)>0?Math.round(rev/(p.bills*ratio)):0};
+    });
+  }
+
+  // Filter summary cats
+  let filteredSum=sum;
+  if(F.cats.size>0){
+    const cats=[...F.cats];
+    const filteredRev=cats.reduce((s,c)=>{const r=sum.cats.find(x=>x.cat===c);return s+(r?r.rev:0);},0);
+    const filteredCats=sum.cats.filter(c=>cats.includes(c.cat));
+    const filteredStores=sum.stores; // stores not per-cat in pre-computed, keep as-is
+    filteredSum={...sum,totalRev:filteredRev,cats:filteredCats,stores:filteredStores};
+  }
+
+  const presetLabels={alltime:'All time',d7:'7 ngày gần nhất',d30:'30 ngày gần nhất',d60:'60 ngày gần nhất',d90:'90 ngày gần nhất'};
+  const catLabel=F.cats.size===0?'Tất cả category':[...F.cats].join('+');
+  const granName={daily:'theo ngày',weekly:'theo tuần',monthly:'theo tháng'}[F.gran];
+
+  return{sum:filteredSum,periods:filteredPeriods,label:presetLabels[F.preset],catLabel,granName};
+}
+
+// ════════ CHARTS ════════
+const CHARTS={};
+function mk(id,type,labels,datasets,opts={}){
+  if(CHARTS[id])CHARTS[id].destroy();
+  const ctx=document.getElementById(id);if(!ctx)return;
+  CHARTS[id]=new Chart(ctx,{type,data:{labels,datasets},options:{
+    plugins:{legend:{display:datasets.length>1,labels:{color:'#8a8278',boxWidth:10,padding:10}},...(opts.plugins||{})},
+    scales:{y:{grid:{color:'#2e2b26'},ticks:{color:'#5a5650',callback:opts.yFmt},...(opts.y||{})},x:{grid:{display:false},...(opts.x||{})}},
+    ...opts
+  }});
+}
+function barDS(data,color,label=''){return{label,data,backgroundColor:color,borderRadius:3};}
+function lineDS(data,color,label=''){return{label,data,borderColor:color,backgroundColor:color+'18',pointRadius:3,tension:.35,fill:true,borderWidth:2};}
+
+// ════════ APPLY FILTER → RENDER ════════
+function applyFilter(){
+  if(!D) return;
+  const sl=getSlice();
+  if(!sl) return;
+
+  // Update badge
+  const isFiltered=F.preset!=='alltime'||F.cats.size>0;
+  const badge=document.getElementById('filterBadge');
+  badge.style.display=isFiltered?'flex':'none';
+  document.getElementById('fbBadgeText').textContent=`${sl.label} · ${sl.catLabel}`;
+
+  // Update sub labels
+  const subText=`${sl.label} · ${sl.catLabel}`;
+  ['p-ret','p-val','p-loy','p-prof'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=subText;});
+
+  // Granularity label updates
+  ['lbl-retB','lbl-retR','lbl-retBi','lbl-valR','lbl-valA','lbl-loyB','lbl-loyR','lbl-nuT','lbl-profC'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=sl.granName;});
+
+  renderRetention(sl);
+  renderValue(sl);
+  renderLoyalty(sl);
+  renderProfile(sl);
+  renderNearUpgrade(sl);
+  renderExport(sl);
+}
+
+// ════════ TAB: TỔNG QUAN ════════
+function renderOverview(){
+  const o=D.overview; const m=D.meta; const r=D.retention;
+  document.getElementById('v-total').textContent=(m.totalCustomers||0).toLocaleString('vi-VN');
+  document.getElementById('v-rprAT').textContent=r.repeatRate+'%';
+  document.getElementById('v-rprSub').textContent=`${r.repeatCustomers?.toLocaleString()} / ${m.totalCustomers?.toLocaleString()} KH`;
+  const rT=document.getElementById('v-rprTag');rT.textContent=r.repeatRate>=35?'✓ Đạt >35%':'↓ Dưới 35%';rT.className='kpi-tag '+(r.repeatRate>=35?'good':'warn');
+
+  const months=o.newByMonth||[];
+  const lat=months[months.length-1]||{}; const prv=months[months.length-2]||{};
+  document.getElementById('v-newM').textContent=lat.count||0;
+  document.getElementById('v-newSub').textContent=`T trước: ${prv.count||0}`;
+  const mom=prv.count>0?(((lat.count||0)-(prv.count||0))/prv.count*100).toFixed(0):0;
+  const mEl=document.getElementById('v-newMoM'); mEl.textContent=mom>=0?`↑ +${mom}% MoM`:`↓ ${mom}% MoM`; mEl.className='kpi-tag '+(mom>=0?'good':'warn');
+
+  mk('c-newM','bar',months.map(m=>m.label),[barDS(months.map(m=>m.count),months.map((_,i)=>i>=months.length-3?C.GOLD:'#3a3530'))]);
+
+  // Revenue from alltime monthly
+  const atPeriods=D.periodData.alltime?.monthly||[];
+  mk('c-revAT','line',atPeriods.map(p=>p.label),[lineDS(atPeriods.map(p=>p.rev),C.GOLD)],{yFmt:v=>fmt(v)});
+
+  // Tier donut
+  const sc=o.schemeCount||{}; const total=m.totalCustomers||1;
+  const rtMap={}; (o.revByTierAlltime||[]).forEach(r=>rtMap[r.tier]=r.rev);
+  new Chart(document.getElementById('c-tierD'),{type:'doughnut',data:{labels:['Member','Silver','Gold','Platinum'],datasets:[{data:[sc.MEMBER||0,sc.SILVER||0,sc.GOLD||0,sc.PLATINUM||0],backgroundColor:[C.SAGE,C.SILVER,C.GOLD,C.PLAT],borderWidth:0,hoverOffset:5}]},options:{cutout:'68%',plugins:{legend:{display:false}}}});
+  document.getElementById('v-tierN').textContent=total.toLocaleString('vi-VN');
+  document.getElementById('tierTbody').innerHTML=[['PLATINUM',C.PLAT,'tp'],['GOLD',C.GOLD,'tg'],['SILVER',C.SILVER,'ts'],['MEMBER',C.SAGE,'tm']].map(([t,color,cls])=>{
+    const cnt=sc[t]||0; const rv=rtMap[t]||0;
+    return`<tr><td><span class="tb ${cls}">${t}</span></td><td>${cnt.toLocaleString('vi-VN')}</td><td><div class="bar-w"><div class="bar-bg"><div class="bar-f" style="width:${(cnt/total*100).toFixed(1)}%;background:${color}"></div></div><div class="bar-p">${(cnt/total*100).toFixed(1)}%</div></div></td><td>${fmt(rv)}</td></tr>`;
+  }).join('');
+
+  // Store all time
+  const st=o.storesAlltime||[];
+  mk('c-storeAT','bar',st.map(s=>s.store),[barDS(st.map(s=>s.rev),[C.GOLD,C.GOLD2,'#a8885c','#8a7048','#6a5630','#4a3a20','#5a8060','#4a6850'].slice(0,st.length))],
+    {indexAxis:'y',x:{grid:{color:'#2e2b26'},ticks:{callback:v=>fmt(v)}},y:{grid:{display:false}}});
+}
+
+// ════════ TAB: RETENTION ════════
+function renderRetention(sl){
+  const s=sl.sum; const ps=sl.periods; const total=D.meta.totalCustomers||1;
+  document.getElementById('v-buyers').textContent=(s.buyers||0).toLocaleString('vi-VN');
+  document.getElementById('v-buyersSub').textContent='Unique KH có GD trong kỳ';
+  document.getElementById('v-buyersTag').textContent=`${(s.buyers/total*100).toFixed(1)}% database`;
+  document.getElementById('v-bills').textContent=(s.bills||0).toLocaleString('vi-VN');
+  document.getElementById('v-billsSub').textContent='Đơn hàng trong kỳ';
+  document.getElementById('v-rpr').textContent=(s.repeatRate||0)+'%';
+  document.getElementById('v-rprSubF').textContent=`${s.repeatCustomers||0} KH có ≥2 bills`;
+  const rT=document.getElementById('v-rprTagF');rT.textContent=(s.repeatRate||0)>=35?'✓ Đạt >35%':'↓ Dưới 35%';rT.className='kpi-tag '+((s.repeatRate||0)>=35?'good':'warn');
+  document.getElementById('v-aovR').textContent=fmt(s.aov||0);
+  document.getElementById('v-aovRSub').textContent=fmtVND(s.aov||0)+' VND';
+
+  const lbls=ps.map(p=>p.label);
+  mk('c-retBuyers','bar',lbls,[barDS(ps.map(p=>p.buyers),ps.map(p=>p.buyers===Math.max(...ps.map(x=>x.buyers))?C.GOLD:'#3a3530'))]);
+  mk('c-retRev','line',lbls,[lineDS(ps.map(p=>p.rev),C.GOLD)],{yFmt:v=>fmt(v)});
+  mk('c-retBills','bar',lbls,[barDS(ps.map(p=>p.bills),'#5a8060')]);
+
+  // Status donut from summary
+  const st=s.status||{}; const total2=D.meta.totalCustomers||1;
+  if(CHARTS['c-statusD'])CHARTS['c-statusD'].destroy();
+  CHARTS['c-statusD']=new Chart(document.getElementById('c-statusD'),{type:'doughnut',data:{labels:['Active','At-Risk','Churned','No Purchase'],datasets:[{data:[st.active||0,st.atRisk||0,st.churned||0,st.noPurchase||0],backgroundColor:[C.SAGE,C.GOLD,C.ROSE,'#3d3a35'],borderWidth:0,hoverOffset:5}]},options:{cutout:'68%',plugins:{legend:{display:false}}}});
+  document.getElementById('v-statusN').textContent=total2.toLocaleString('vi-VN');
+  document.getElementById('statusLegend').innerHTML=[
+    [C.SAGE,`Active (mua trong kỳ): ${(st.active||0).toLocaleString()} (${((st.active||0)/total2*100).toFixed(1)}%)`],
+    [C.GOLD,`At-Risk (không mua, ≤365 ngày): ${(st.atRisk||0).toLocaleString()} (${((st.atRisk||0)/total2*100).toFixed(1)}%)`],
+    [C.ROSE,`Churned (không mua, >365 ngày): ${(st.churned||0).toLocaleString()} (${((st.churned||0)/total2*100).toFixed(1)}%)`],
+    ['#3d3a35',`No Purchase: ${(st.noPurchase||0).toLocaleString()}`],
+  ].map(([c,t])=>`<div style="display:flex;align-items:center;gap:5px"><div style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0"></div>${t}</div>`).join('');
+}
+
+// ════════ TAB: CUSTOMER VALUE ════════
+function renderValue(sl){
+  const s=sl.sum; const ps=sl.periods;
+  document.getElementById('v-rev').textContent=fmt(s.totalRev||0);
+  document.getElementById('v-revSub').textContent=fmtVND(s.totalRev||0)+' VND';
+  document.getElementById('v-revTag').textContent=sl.label;
+  document.getElementById('v-aov').textContent=fmt(s.aov||0);
+  document.getElementById('v-aovSub').textContent=fmtVND(s.aov||0)+' VND / đơn';
+  document.getElementById('v-billsV').textContent=(s.bills||0).toLocaleString('vi-VN');
+  document.getElementById('v-billsVSub').textContent='Đơn hàng';
+  document.getElementById('v-freq').textContent=s.freq||0;
+  document.getElementById('v-freqSub').textContent='Bills / KH';
+
+  const lbls=ps.map(p=>p.label);
+  mk('c-valRev','line',lbls,[lineDS(ps.map(p=>p.rev),C.GOLD)],{yFmt:v=>fmt(v)});
+  mk('c-valAov','line',lbls,[lineDS(ps.map(p=>p.aov),C.GOLD2)],{yFmt:v=>fmt(v)});
+
+  // Tier donut
+  const rv=s.revByTier||[]; const tot=s.totalRev||1;
+  if(CHARTS['c-revTD'])CHARTS['c-revTD'].destroy();
+  CHARTS['c-revTD']=new Chart(document.getElementById('c-revTD'),{type:'doughnut',data:{labels:rv.map(r=>r.tier),datasets:[{data:rv.map(r=>r.rev),backgroundColor:rv.map(r=>TC[r.tier]||C.SAGE),borderWidth:0,hoverOffset:5}]},options:{cutout:'68%',plugins:{legend:{display:false}}}});
+  document.getElementById('v-revTN').textContent=fmt(tot);
+  document.getElementById('revTierTbody').innerHTML=['MEMBER','SILVER','GOLD','PLATINUM'].map(t=>{const r=rv.find(x=>x.tier===t)||{rev:0};return`<tr><td><span class="tb ${TB[t]}">${t}</span></td><td>${fmt(r.rev)}</td><td><div class="bar-w"><div class="bar-bg"><div class="bar-f" style="width:${(r.rev/tot*100).toFixed(1)}%;background:${TC[t]}"></div></div><div class="bar-p">${(r.rev/tot*100).toFixed(1)}%</div></div></td></tr>`;}).join('');
+
+  // Store %
+  const st=s.stores||[];
+  mk('c-storeP','bar',st.map(s=>s.store),[barDS(st.map(s=>s.pct),[C.GOLD,C.GOLD2,'#a8885c','#8a7048','#6a5630','#4a3a20','#5a8060','#4a6850'].slice(0,st.length))],
+    {indexAxis:'y',x:{grid:{color:'#2e2b26'},ticks:{callback:v=>v+'%'}},y:{grid:{display:false}}});
+
+  // Category revenue
+  const cats=s.cats||[];
+  mk('c-catRev','bar',cats.map(c=>c.cat),[barDS(cats.map(c=>c.rev),cats.map((_,i)=>i===0?C.GOLD:i===1?C.GOLD2:'#4a4030'))],
+    {yFmt:v=>fmt(v)});
+}
+
+// ════════ TAB: LOYALTY ════════
+function renderLoyalty(sl){
+  const s=sl.sum; const ps=sl.periods; const sc=D.overview.schemeCount||{}; const total=D.meta.totalCustomers||1;
+  const ret=D.retention; const vip=(sc.PLATINUM||0)+(sc.GOLD||0);
+  document.getElementById('v-totalM').textContent=total.toLocaleString('vi-VN');
+  document.getElementById('v-activeM').textContent=ret.activeRate+'%';
+  document.getElementById('v-activeMSub').textContent=`${ret.active?.toLocaleString()} KH mua ≤180 ngày`;
+  document.getElementById('v-vip').textContent=vip.toLocaleString('vi-VN');
+  document.getElementById('v-vipSub').textContent=`${(vip/total*100).toFixed(1)}% database`;
+  document.getElementById('v-loyB').textContent=(s.buyers||0).toLocaleString('vi-VN');
+  document.getElementById('v-loyBSub').textContent=`${((s.buyers||0)/total*100).toFixed(1)}% database`;
+
+  // Tier breakdown per period
+  const lbls=ps.map(p=>p.label);
+  const tierKeys=['MEMBER','SILVER','GOLD','PLATINUM'];
+  const tierBuyers=tierKeys.map(t=>ps.map(p=>{const rv=p.tierRev?.[t]||0; const tRev=Object.values(p.tierRev||{}).reduce((s,v)=>s+v,0); return tRev>0?Math.round(p.buyers*rv/tRev):0;}));
+  const tierRevs=tierKeys.map(t=>ps.map(p=>Math.round(p.tierRev?.[t]||0)));
+  mk('c-loyTier','bar',lbls,[barDS(tierBuyers[3],C.PLAT,'Platinum'),barDS(tierBuyers[2],C.GOLD,'Gold'),barDS(tierBuyers[1],C.SILVER,'Silver'),barDS(tierBuyers[0],C.SAGE,'Member')],{plugins:{legend:{display:true}}});
+  mk('c-loyRev','bar',lbls,[barDS(tierRevs[3],C.PLAT,'Platinum'),barDS(tierRevs[2],C.GOLD,'Gold'),barDS(tierRevs[1],C.SILVER,'Silver'),barDS(tierRevs[0],C.SAGE,'Member')],{yFmt:v=>fmt(v),plugins:{legend:{display:true}}});
+
+  const strats=[
+    {t:'PLATINUM',color:C.PLAT,border:C.PLAT,tips:['Personal stylist','Early access','Birthday VIP','Exclusive event']},
+    {t:'GOLD',color:C.GOLD,border:C.GOLD,tips:['Retention campaign','Upsell lên Platinum','Exclusive offer','Double points']},
+    {t:'SILVER',color:C.SILVER,border:C.SILVER,tips:['Push lên Gold','Còn X để lên Gold','Bundle offer','Reminder điểm']},
+    {t:'MEMBER',color:'#9ed0a2',border:'#7a9e7e',tips:['Win-back campaign','Welcome back','Re-engagement SMS','First repeat discount']},
+  ];
+  const revMap={}; (s.revByTier||[]).forEach(r=>revMap[r.tier]=r.rev);
+  document.getElementById('loyStrat').innerHTML=strats.map(x=>`
+    <div style="padding:14px;background:var(--surface2);border-radius:8px;border-top:3px solid ${x.border}">
+      <div class="tb ${TB[x.t]}" style="margin-bottom:7px;display:inline-block">${x.t} · ${(sc[x.t]||0).toLocaleString()}</div>
+      <div style="font-size:15px;font-family:'DM Serif Display',serif;color:${x.color};margin-bottom:5px">${fmt(revMap[x.t]||0)} VND</div>
+      <div style="font-size:11px;color:var(--text-muted);line-height:1.7">${x.tips.map(t=>'• '+t).join('<br>')}</div>
+    </div>`).join('');
+}
+
+// ════════ TAB: PROFILE ════════
+function renderProfile(sl){
+  const s=sl.sum; const ps=sl.periods; const p=D.profile; const total=D.meta.totalCustomers||1;
+
+  // Age dist from all-time profile (KH who bought in period = approximated from allCustomers)
+  const ageDist=p.ageDist||{};
+  const ageKeys=Object.keys(ageDist); const ageVals=ageKeys.map(k=>ageDist[k]);
+  const topAge=ageKeys[ageVals.indexOf(Math.max(...ageVals))]||'—';
+  document.getElementById('v-topAge').textContent=topAge;
+
+  const prov=p.topProvinces||[];
+  document.getElementById('v-p1').textContent=prov[0]?prov[0].province.slice(0,12):'—';
+  document.getElementById('v-p1Sub').textContent=prov[0]?`${prov[0].count.toLocaleString()} KH · ${(prov[0].count/total*100).toFixed(1)}%`:'—';
+  document.getElementById('v-p2').textContent=prov[1]?prov[1].province.slice(0,4):'—';
+  document.getElementById('v-p2Sub').textContent=prov[1]?`${prov[1].count.toLocaleString()} KH · ${(prov[1].count/total*100).toFixed(1)}%`:'—';
+
+  const maxAge=Math.max(...ageVals);
+  mk('c-age','bar',ageKeys,[barDS(ageVals,ageVals.map(v=>v===maxAge?C.GOLD:'#3a3530'))]);
+  mk('c-prov','bar',prov.slice(0,8).map(p=>p.province),[barDS(prov.slice(0,8).map(p=>p.count),[C.GOLD,C.GOLD2,'#7a9e7e','#6a8e6e','#5a7e5e','#4a6e4e','#3a5e3e','#2a4e2e'].slice(0,prov.length))],
+    {indexAxis:'y',y:{grid:{display:false}},x:{grid:{color:'#2e2b26'}}});
+
+  // Category revenue from periods catRev
+  const catRevMap={};
+  ps.forEach(p=>{Object.entries(p.catRev||{}).forEach(([c,v])=>{catRevMap[c]=(catRevMap[c]||0)+v;});});
+  const catSorted=Object.entries(catRevMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  mk('c-profCat','bar',catSorted.map(c=>c[0]),[barDS(catSorted.map(c=>Math.round(c[1])),catSorted.map((_,i)=>i===0?C.GOLD:i===1?C.GOLD2:'#4a4030'))],{yFmt:v=>fmt(v)});
+}
+
+// ════════ TAB: NEAR UPGRADE ════════
+let nuTier='all', nuData=null;
+function setNUTier(t,el){nuTier=t;document.querySelectorAll('#tab-nearupgrade .tog').forEach(b=>b.classList.remove('on'));el.classList.add('on');renderNUChart();}
+
+function renderNearUpgrade(sl){
+  const s=sl.sum; const nu=s.nearUpgrade||{};
+  nuData=nu;
+
+  const heroData=[
+    {key:'silver',from:'Member',to:'Silver',cls1:'tm',cls2:'ts',color:C.SILVER,count:nu.countSilver||0,lower:2400000,upper:3000000,hint:'~300K VND còn thiếu TB'},
+    {key:'gold',  from:'Silver',to:'Gold',  cls1:'ts',cls2:'tg',color:C.GOLD,  count:nu.countGold||0,  lower:4800000,upper:6000000,  hint:'~600K VND còn thiếu TB',accent:true},
+    {key:'plat',  from:'Gold','to':'Platinum',cls1:'tg',cls2:'tp',color:C.PLAT,count:nu.countPlat||0,lower:16000000,upper:20000000,hint:'~2.1M VND còn thiếu TB'},
+  ];
+  document.getElementById('nuHeroCards').innerHTML=heroData.map(h=>`
+    <div class="kpi${h.accent?' accent':''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div><span class="tb ${h.cls1}">${h.from}</span> <span style="color:var(--text-muted)">→</span> <span class="tb ${h.cls2}">${h.to}</span></div>
+        <div style="font-size:9px;color:var(--text-muted)">≥${fmtVND(h.lower)} VND</div>
+      </div>
+      <div class="nu-hero"><div class="nu-val" style="color:${h.color}">${h.count}</div><div class="nu-lbl">khách hàng</div><div class="nu-hint">${h.hint}<br>Ngưỡng: ${fmtVND(h.upper)} VND</div></div>
+    </div>`).join('');
+
+  // Build trend from periods (approx: count NU per period using period rev / threshold)
+  renderNUChart(sl.periods, sl.sum.nearUpgrade);
+
+  document.getElementById('nuTblToggle').innerHTML=heroData.map((h,i)=>`
+    <button class="tog${i===0?' on':''}" onclick="renderNUTable('${h.key}',this)">${h.to} (${h.count})</button>`).join('');
+  renderNUTable('silver');
+}
+
+function renderNUChart(periods, nu){
+  if(periods) window._nuPeriods=periods;
+  if(nu) window._nuNu=nu;
+  const ps=window._nuPeriods||[]; const n=window._nuNu||{};
+  const lbls=ps.map(p=>p.label);
+  // Approximate trend: use buyer count proportion × total NU count
+  const totalBuyers=ps.reduce((s,p)=>s+p.buyers,0)||1;
+  const ds=[];
+  if(nuTier==='all'||nuTier==='silver') ds.push(lineDS(ps.map(p=>Math.round((n.countSilver||0)*p.buyers/totalBuyers)),C.SILVER,'Member→Silver'));
+  if(nuTier==='all'||nuTier==='gold')   ds.push(lineDS(ps.map(p=>Math.round((n.countGold||0)*p.buyers/totalBuyers)),C.GOLD,'Silver→Gold'));
+  if(nuTier==='all'||nuTier==='plat')   ds.push(lineDS(ps.map(p=>Math.round((n.countPlat||0)*p.buyers/totalBuyers)),C.PLAT,'Gold→Platinum'));
+  mk('c-nuTrend','line',lbls,ds,{plugins:{legend:{display:true},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y} KH`}}}});
+}
+
+function renderNUTable(tier,el){
+  if(el){document.querySelectorAll('#nuTblToggle .tog').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
+  const nu=nuData||{};
+  const meta={silver:{cls1:'tm',from:'Member',to:'Silver',upper:3000000},gold:{cls1:'ts',from:'Silver',to:'Gold',upper:6000000},plat:{cls1:'tg',from:'Gold',to:'Platinum',upper:20000000}};
+  const m=meta[tier]||meta.silver;
+  const list=(nu[tier]||[]).slice(0,10);
+  document.getElementById('nuTblTitle').textContent=`Top KH gần lên ${m.to}`;
+  document.getElementById('nuTblCount').textContent=`${nu['count'+tier.charAt(0).toUpperCase()+tier.slice(1)]||0} KH trong vùng 80–100%`;
+  document.getElementById('nuTblBody').innerHTML=list.map((r,i)=>`
+    <tr>
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td style="font-family:monospace;color:var(--gold-light)">${r.no}</td>
+      <td><span class="tb ${m.cls1}">${m.from}</span> → <span style="color:var(--gold);font-size:9px;font-weight:700">${m.to}</span></td>
+      <td style="text-align:right">${fmtVND(r.rev12)}</td>
+      <td style="text-align:right;color:var(--rose)">−${fmtVND(r.gap)}</td>
+      <td style="min-width:100px"><div class="bar-w"><div class="bar-bg" style="height:6px"><div class="bar-f" style="width:${r.pct}%;background:${r.pct>=99?C.SAGE:C.GOLD}"></div></div><div class="bar-p">${r.pct}%</div></div></td>
+      <td style="color:var(--text-muted)">${r.last||'—'}</td>
+    </tr>`).join('');
+}
+
+// ════════ TAB: EXPORT ════════
+function setExpF(type,val,el){
+  EF[type]=val;
+  document.querySelectorAll(`#exp${type.charAt(0).toUpperCase()+type.slice(1)} .ftag`).forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderExport(getSlice());
+}
+
+function getExpRows(sl){
+  if(!D?.allCustomers) return [];
+  const hasCatFilter=F.cats.size>0;
+  return D.allCustomers.filter(r=>{
+    if(EF.tier!=='ALL'&&r.tier!==EF.tier) return false;
+    if(EF.status!=='ALL'&&r.status!==EF.status) return false;
+    if(EF.near!=='ALL'&&r.near!==EF.near) return false;
+    // Category filter: KH must have bought the category (stored in cats field)
+    if(hasCatFilter){
+      const kCats=(r.cats||'').split(',').filter(Boolean);
+      const match=[...F.cats].some(c=>kCats.includes(c));
+      if(!match) return false;
+    }
+    return true;
+  }).map(r=>{
+    const kCats=(r.cats||'').split(',').filter(Boolean);
+    const matchedCats=F.cats.size>0?kCats.filter(c=>F.cats.has(c)):kCats;
+    return{...r,catsInPeriod:matchedCats.join(', '),topCat:matchedCats[0]||''};
+  });
+}
+
+function renderExport(sl){
+  if(!D?.allCustomers){document.getElementById('expCount').textContent='—';return;}
+  const rows=getExpRows(sl);
+  const hasCat=F.cats.size>0;
+  document.getElementById('expCount').textContent=rows.length.toLocaleString('vi-VN');
+  const cols=[{k:'no',l:'Mã KH'},{k:'name',l:'Họ tên'},{k:'phone',l:'SĐT'},{k:'tier',l:'Hạng'},{k:'status',l:'Trạng thái'},{k:'near',l:'Near Upgrade'},{k:'province',l:'Tỉnh/TP'},{k:'store',l:'Store'},...(hasCat?[{k:'catsInPeriod',l:'Categories đã mua'},{k:'topCat',l:'Cat chính'}]:[]),(hasCat?{k:'revInPeriod',l:'DT kỳ lọc'}:{k:'rev12m',l:'DT 12M'}),{k:'points12m',l:'Điểm 12M'},{k:'totalRev',l:'Tổng DT'},{k:'lastDate',l:'Mua cuối'},{k:'daysSince',l:'Ngày chưa mua'}];
+  document.getElementById('expHead').innerHTML=`<tr>${cols.map(c=>`<th>${c.l}</th>`).join('')}</tr>`;
+  const SC={Active:'#9ed0a2','At-Risk':C.GOLD,Churned:C.ROSE,'No Purchase':'#5a5650'};
+  document.getElementById('expBody').innerHTML=rows.slice(0,20).map(r=>`<tr>
+    <td style="font-family:monospace;color:var(--gold-light)">${r.no||'—'}</td>
+    <td>${r.name||'—'}</td>
+    <td style="font-family:monospace">${r.phone||'—'}</td>
+    <td><span style="padding:2px 7px;border-radius:20px;font-size:9px;font-weight:700;background:rgba(201,168,76,.1);color:${TC[r.tier]||'#8a8278'}">${r.tier||'—'}</span></td>
+    <td><span style="padding:2px 7px;border-radius:20px;font-size:9px;font-weight:700;background:rgba(0,0,0,.2);color:${SC[r.status]||'#8a8278'}">${r.status||'—'}</span></td>
+    <td style="color:var(--gold);font-size:10px">${r.near||'—'}</td>
+    <td>${r.province||'—'}</td>
+    <td>${r.store||'—'}</td>
+    ${hasCat?`<td style="color:var(--gold-light);font-size:10px">${r.catsInPeriod||'—'}</td><td style="color:var(--gold);font-weight:700">${r.topCat||'—'}</td>`:``}
+    <td style="text-align:right">${fmtVND(hasCat?(r.revInPeriod||0):(r.rev12m||0))}</td>
+    <td style="text-align:right">${r.points12m||0}</td>
+    <td style="text-align:right">${fmtVND(r.totalRev)}</td>
+    <td>${r.lastDate||'—'}</td>
+    <td style="text-align:right;color:${(r.daysSince||0)>365?C.ROSE:(r.daysSince||0)>180?C.GOLD:C.SAGE}">${r.daysSince||'—'}</td>
+  </tr>`).join('');
+  document.getElementById('expPrevLbl').textContent=`(${rows.length.toLocaleString()} KH)`;
+}
+
+function downloadExcel(){
+  if(!D?.allCustomers){alert('Chưa có data');return;}
+  const sl=getSlice(); const filtered=getExpRows(sl);
+  const today=D.meta?.updatedAt||''; const hasCat=F.cats.size>0;
+  const wb=XLSX.utils.book_new();
+  const HDR=['Mã KH','Họ tên','SĐT','Hạng thẻ','Trạng thái','Near Upgrade','Tỉnh/TP','Store',...(hasCat?['Categories đã mua','Cat chính']:[]),'DT 12M (VND)','Điểm 12M','Tổng DT (VND)','Mua lần cuối','Số ngày chưa mua','Ghi chú campaign'];
+  const toRow=r=>[r.no,r.name,r.phone,r.tier,r.status,r.near||'',r.province,r.store,...(hasCat?[r.catsInPeriod||'',r.topCat||'']:[]),r.rev12m||0,r.points12m||0,r.totalRev||0,r.lastDate||'',r.daysSince||'',''];
+  function addSh(name,rows){const ws=XLSX.utils.aoa_to_sheet([HDR,...rows.map(toRow)]);ws['!cols']=[10,22,13,10,10,13,15,8,...(hasCat?[28,12]:[]),16,10,16,11,15,20].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,name);}
+  addSh('Near Upgrade',filtered.filter(r=>r.near));
+  addSh('Win-back',filtered.filter(r=>r.status==='At-Risk'||r.status==='Churned'));
+  addSh('Toan bo KH',filtered);
+  const sc=D.overview?.schemeCount||{}; const nu=sl.sum.nearUpgrade||{};
+  const sum=[['BÁO CÁO CRM PANDEMOS','',''],['Ngày cập nhật',today,''],['Filter',`${sl.label} · ${sl.catLabel}`,''],['','',''],['PHÂN HẠNG','KH',''],['Platinum',sc.PLATINUM||0,''],['Gold',sc.GOLD||0,''],['Silver',sc.SILVER||0,''],['Member',sc.MEMBER||0,''],['','',''],['NEAR UPGRADE','',''],['→Silver',nu.countSilver||0,''],['→Gold',nu.countGold||0,''],['→Platinum',nu.countPlat||0,''],['','',''],['KẾT QUẢ FILTER','',''],['Hạng',EF.tier,''],['Trạng thái',EF.status,''],['Near',EF.near,''],['KH sau filter',filtered.length,'']];
+  const wsSub=XLSX.utils.aoa_to_sheet(sum);wsSub['!cols']=[{wch:28},{wch:20},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,wsSub,'Tom tat');
+  XLSX.writeFile(wb,`Pandemos_CRM_${today}_${EF.tier}_${EF.status}${hasCat?'_'+[...F.cats].slice(0,3).join('+'):''}.xlsx`);
+}
+
+// ════════ LOAD DATA ════════
+async function loadData(){
+  try{
+    document.getElementById('loadingText').textContent='Đang kết nối GitHub...';
+    const res=await fetch(DATA_URL+'?t='+Date.now());
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    D=await res.json();
+    document.getElementById('loadingText').textContent='Đang render...';
+    document.getElementById('hUpdated').textContent=`Cập nhật: ${D.meta?.updatedAt||'—'} · Data từ ERP`;
+    renderOverview();
+    buildCatButtons();
+    applyFilter();
+    document.getElementById('loadingOverlay').style.display='none';
+  }catch(e){
+    document.getElementById('loadingText').innerHTML=`<span style="color:#e89a90">❌ ${e.message}</span><br><br><a href="upload.html" style="color:var(--gold)">→ Upload data</a>`;
+    document.querySelector('.spinner').style.display='none';
+  }
+}
+loadData();
+</script>
+</body>
+</html>
