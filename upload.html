@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pandemos CRM — Upload Data</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap');
+:root{--bg:#0f0e0d;--surface:#1a1916;--surface2:#211f1c;--border:#2e2b26;--gold:#c9a84c;--gold-light:#e8c97a;--rose:#c46b5e;--sage:#7a9e7e;--text:#f0ebe3;--text-muted:#8a8278;--text-dim:#5a5650;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;min-height:100vh;display:flex;flex-direction:column;}
+header{background:linear-gradient(135deg,#1a1916,#211f1c);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:'DM Serif Display',serif;font-size:20px;color:var(--gold-light);}
+.logo span{color:var(--text-muted);font-size:11px;font-family:'Inter',sans-serif;display:block;letter-spacing:.15em;text-transform:uppercase;}
+main{flex:1;padding:32px;max-width:800px;margin:0 auto;width:100%;}
+h2{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:6px;}
+.sub{color:var(--text-muted);font-size:12px;margin-bottom:28px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px;position:relative;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);opacity:.5;border-radius:12px 12px 0 0;}
+.card-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:14px;}
+label{display:block;font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;}
+input[type=text],input[type=password]{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;}
+input:focus{border-color:var(--gold);}
+.field{margin-bottom:16px;}.row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.drop-zone{border:2px dashed var(--border);border-radius:10px;padding:36px 24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--gold);background:rgba(201,168,76,.05);}
+.drop-zone .icon{font-size:32px;margin-bottom:10px;}
+.drop-zone .hint{font-size:12px;color:var(--text-muted);}
+.drop-zone .hint strong{color:var(--gold-light);}
+#fileInput{display:none;}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;border:none;transition:all .2s;}
+.btn-primary{background:var(--gold);color:#1a1500;}.btn-primary:hover{background:var(--gold-light);}
+.btn-primary:disabled{background:#3a3020;color:var(--text-muted);cursor:not-allowed;}
+.btn-secondary{background:transparent;color:var(--text-muted);border:1px solid var(--border);}
+.btn-secondary:hover{color:var(--text);border-color:var(--gold);}
+.btn-danger{background:rgba(196,107,94,.15);color:#e89a90;border:1px solid rgba(196,107,94,.3);}
+.progress-wrap{display:none;margin-top:16px;}
+.progress-bg{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--gold);border-radius:3px;transition:width .3s;width:0%;}
+.log{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:11px;font-family:monospace;color:var(--text-muted);max-height:220px;overflow-y:auto;margin-top:14px;display:none;}
+.log .ok{color:#9ed0a2;}.log .err{color:#e89a90;}.log .info{color:var(--gold);}
+.status-bar{display:none;align-items:center;gap:10px;padding:12px 16px;border-radius:8px;font-size:12px;margin-top:16px;}
+.status-bar.success{background:rgba(122,158,126,.12);border:1px solid rgba(122,158,126,.3);color:#9ed0a2;}
+.status-bar.error{background:rgba(196,107,94,.12);border:1px solid rgba(196,107,94,.3);color:#e89a90;}
+.file-selected{display:none;align-items:center;gap:10px;padding:12px;background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.2);border-radius:8px;margin-top:12px;}
+.file-selected .fname{font-size:12px;color:var(--gold-light);flex:1;}
+.toggle-pwd{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:2px;}
+.pwd-wrap{position:relative;}
+.tip{font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5;}
+.link{color:var(--gold);text-decoration:none;}.link:hover{text-decoration:underline;}
+.saved-dot{display:inline-block;width:6px;height:6px;background:var(--sage);border-radius:50%;margin-right:4px;}
+</style>
+</head>
+<body>
+<header>
+  <div><div class="logo">Pandemos <span>CRM — Admin Upload</span></div></div>
+  <a href="index.html" class="btn btn-secondary" style="text-decoration:none;font-size:11px">← Về Dashboard</a>
+</header>
+<main>
+  <h2>Upload Data ERP</h2>
+  <p class="sub">Upload file Raw_member_ERP.xlsx để cập nhật dashboard. Toàn bộ KPIs được tính sẵn khi upload — dashboard load tức thì.</p>
+
+  <div class="card">
+    <div class="card-title">⚙ Bước 1 — Cấu hình GitHub Repository</div>
+    <div class="row2">
+      <div class="field"><label>GitHub Username</label><input type="text" id="ghOwner" placeholder="vd: HoangDuy8192"></div>
+      <div class="field"><label>Repository Name</label><input type="text" id="ghRepo" placeholder="vd: Pandemos-CRM-Report"></div>
+    </div>
+    <div class="field"><label>Branch</label><input type="text" id="ghBranch" value="main" style="max-width:200px"></div>
+    <p class="tip">ℹ Thông tin được lưu tự động vào trình duyệt. Chỉ cần nhập 1 lần.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔑 Bước 2 — GitHub Personal Access Token</div>
+    <div class="field">
+      <label>Token <span id="tokenSavedBadge" style="display:none"><span class="saved-dot"></span>Đã lưu</span></label>
+      <div class="pwd-wrap">
+        <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+        <button class="toggle-pwd" onclick="togglePwd()">👁</button>
+      </div>
+      <p class="tip">Tạo tại: <a class="link" href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a> — chọn scope: <strong style="color:var(--gold-light)">repo</strong></p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveConfig()">💾 Lưu cấu hình</button>
+      <button class="btn btn-danger" onclick="clearConfig()">🗑 Xóa token</button>
+    </div>
+    <div id="configStatus" class="status-bar"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📂 Bước 3 — Upload file ERP</div>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+         ondragover="handleDrag(event,true)" ondragleave="handleDrag(event,false)" ondrop="handleDrop(event)">
+      <div class="icon">📊</div>
+      <div class="hint">Kéo thả hoặc <strong>click để chọn file</strong></div>
+      <div class="hint" style="margin-top:4px">Raw_member_ERP.xlsx</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="onFileSelect(this)">
+    <div class="file-selected" id="fileSelected">
+      <span>📄</span><span class="fname" id="fileName">—</span>
+      <span id="fileSize" style="font-size:11px;color:var(--text-muted)"></span>
+    </div>
+    <div class="progress-wrap" id="progressWrap">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--text-muted)" id="progressLabel">Đang xử lý...</span>
+        <span style="font-size:11px;color:var(--gold)" id="progressPct">0%</span>
+      </div>
+      <div class="progress-bg"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+    <div id="processLog" class="log"></div>
+    <div id="uploadStatus" class="status-bar"></div>
+    <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="btnProcess" onclick="processAndUpload()" disabled>⚡ Xử lý & Upload lên GitHub</button>
+    </div>
+  </div>
+
+  <div class="card" style="background:transparent;border-style:dashed">
+    <div class="card-title">ℹ Hướng dẫn nhanh</div>
+    <div style="font-size:12px;color:var(--text-muted);line-height:1.9">
+      1. Export file <strong style="color:var(--text)">Raw_member_ERP.xlsx</strong> từ ERP (giữ nguyên format sheet)<br>
+      2. Mở trang này → chọn file → nhấn <strong style="color:var(--gold-light)">Xử lý & Upload</strong><br>
+      3. Chờ ~60 giây (tính toán sẵn mọi KPI) → Dashboard cập nhật tức thì<br>
+      4. Dashboard: <code style="color:var(--gold)">https://[username].github.io/[repo]/</code>
+    </div>
+  </div>
+</main>
+
+<script>
+const LS = { get:k=>localStorage.getItem('pdm_'+k)||'', set:(k,v)=>localStorage.setItem('pdm_'+k,v), del:k=>localStorage.removeItem('pdm_'+k) };
+window.onload = () => {
+  document.getElementById('ghOwner').value = LS.get('owner');
+  document.getElementById('ghRepo').value  = LS.get('repo');
+  document.getElementById('ghBranch').value= LS.get('branch')||'main';
+  document.getElementById('ghToken').value = LS.get('token');
+  if(LS.get('token')) document.getElementById('tokenSavedBadge').style.display='inline';
+};
+function saveConfig(){
+  const o=document.getElementById('ghOwner').value.trim();
+  const r=document.getElementById('ghRepo').value.trim();
+  const b=document.getElementById('ghBranch').value.trim()||'main';
+  const t=document.getElementById('ghToken').value.trim();
+  if(!o||!r||!t){showStatus('configStatus','error','⚠ Vui lòng điền đầy đủ');return;}
+  LS.set('owner',o);LS.set('repo',r);LS.set('branch',b);LS.set('token',t);
+  document.getElementById('tokenSavedBadge').style.display='inline';
+  showStatus('configStatus','success','✓ Đã lưu cấu hình');
+}
+function clearConfig(){['owner','repo','branch','token'].forEach(k=>LS.del(k));['ghOwner','ghRepo','ghToken'].forEach(id=>document.getElementById(id).value='');document.getElementById('ghBranch').value='main';document.getElementById('tokenSavedBadge').style.display='none';showStatus('configStatus','error','🗑 Đã xóa');}
+function togglePwd(){const el=document.getElementById('ghToken');el.type=el.type==='password'?'text':'password';}
+function showStatus(id,type,msg){const el=document.getElementById(id);el.className='status-bar '+type;el.style.display='flex';el.textContent=msg;}
+function handleDrag(e,on){e.preventDefault();document.getElementById('dropZone').classList.toggle('drag',on);}
+function handleDrop(e){e.preventDefault();handleDrag(e,false);if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);}
+function onFileSelect(inp){if(inp.files[0])loadFile(inp.files[0]);}
+let selectedFile=null;
+function loadFile(f){selectedFile=f;document.getElementById('fileName').textContent=f.name;document.getElementById('fileSize').textContent=(f.size/1024/1024).toFixed(2)+' MB';document.getElementById('fileSelected').style.display='flex';document.getElementById('btnProcess').disabled=false;document.getElementById('uploadStatus').style.display='none';document.getElementById('processLog').style.display='none';}
+function log(msg,type='info'){const el=document.getElementById('processLog');el.style.display='block';el.innerHTML+=`<div class="${type}">${msg}</div>`;el.scrollTop=el.scrollHeight;}
+function setProgress(pct,label){document.getElementById('progressWrap').style.display='block';document.getElementById('progressFill').style.width=pct+'%';document.getElementById('progressPct').textContent=pct+'%';document.getElementById('progressLabel').textContent=label;}
+
+// ════════════════════════════════════════
+// CORE: PRE-COMPUTE ALL KPIs
+// ════════════════════════════════════════
+function computeAllKPIs(ma, mse) {
+  const NOW = new Date();
+  const todayStr = `${NOW.getFullYear()}-${String(NOW.getMonth()+1).padStart(2,'0')}-${String(NOW.getDate()).padStart(2,'0')}`;
+  const TODAY = new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate(), 12, 0, 0);
+
+  function parseDate(v){if(!v)return null;const d=new Date(v);return isNaN(d)?null:d;}
+  function parseNum(v){return parseFloat(String(v||0).replace(/,/g,''))||0;}
+  function dateKey(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+  function weekKey(d){const d2=new Date(d);const day=d2.getDay()||7;d2.setDate(d2.getDate()-day+1);return dateKey(d2);}
+  function monthKey(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+  function monthLabel(ym){const[y,m]=ym.split('-');return`T${parseInt(m)}/${String(y).slice(-2)}`;}
+
+  // ── Prep members ──
+  ma.forEach(r=>{
+    r._created=parseDate(r['Created_Date']);
+    r._lastDate=parseDate(r['Last Date']);
+    r._total=parseNum(r['Total_Sales']);
+    r._days=r._lastDate?Math.floor((TODAY-r._lastDate)/86400000):99999;
+    r._scheme=(r['Scheme_Code']||'MEMBER').toUpperCase();
+    r._age=parseNum(r['Tuổi'])||null;
+  });
+
+  // ── Prep transactions ──
+  const mseClean=mse.filter(r=>parseNum(r['Gross_Amount'])!==0);
+  mseClean.forEach(r=>{
+    r._date=parseDate(r['Date']);
+    r._amt=Math.abs(parseNum(r['Gross_Amount']));
+    r._memberId=r['Member_Account_No']||'';
+    r._cat=(r['Item_Category_Code']||'').trim();
+    r._store=r['Store_No']||'';
+    r._bill=r['Document_No']||'';
+  });
+  const validTx=mseClean.filter(r=>r._date);
+
+  // ── Member lookup ──
+  const maMap={};
+  ma.forEach(r=>maMap[r['No']]=r);
+
+  // ── Helper: aggregate tx into period buckets ──
+  function aggregatePeriods(txArr, keyFn, periodList) {
+    const rev={}, bills={}, buyers={}, catRev={}, tierRev={};
+    periodList.forEach(p=>{rev[p]=0;bills[p]=new Set();buyers[p]=new Set();catRev[p]={};tierRev[p]={};});
+    txArr.forEach(r=>{
+      const k=keyFn(r._date);
+      if(!(k in rev)) return;
+      rev[k]+=r._amt; bills[k].add(r._bill); buyers[k].add(r._memberId);
+      catRev[k][r._cat]=(catRev[k][r._cat]||0)+r._amt;
+      const tier=(maMap[r._memberId]?._scheme)||'MEMBER';
+      tierRev[k][tier]=(tierRev[k][tier]||0)+r._amt;
+    });
+    return periodList.map(p=>({
+      period:p,
+      rev:Math.round(rev[p]||0),
+      bills:(bills[p]||new Set()).size,
+      buyers:(buyers[p]||new Set()).size,
+      aov:(bills[p]||new Set()).size>0?Math.round((rev[p]||0)/(bills[p]||new Set()).size):0,
+      catRev:catRev[p]||{},
+      tierRev:tierRev[p]||{}
+    }));
+  }
+
+  // Generate period lists
+  function genDays(n){const out=[];for(let i=n-1;i>=0;i--){const d=new Date(TODAY);d.setDate(d.getDate()-i);out.push(dateKey(d));}return out;}
+  function genWeeks(n){const out=[];for(let i=n-1;i>=0;i--){const d=new Date(TODAY);d.setDate(d.getDate()-i*7);out.push(weekKey(d));}return [...new Set(out)].sort();}
+  function genMonths(n){const out=[];for(let i=n-1;i>=0;i--){const d=new Date(TODAY);d.setMonth(d.getMonth()-i);out.push(monthKey(d));}return out;}
+
+  const days7=genDays(7), days30=genDays(30), days60=genDays(60), days90=genDays(90);
+  const weeks12=genWeeks(12), months12=genMonths(12);
+  const cutoffByDays={7:new Date(TODAY.getTime()-7*86400000),30:new Date(TODAY.getTime()-30*86400000),60:new Date(TODAY.getTime()-60*86400000),90:new Date(TODAY.getTime()-90*86400000)};
+
+  // Filter tx by date range
+  function txInRange(days){if(days===0)return validTx;const cutoff=cutoffByDays[days]||new Date(0);return validTx.filter(r=>r._date>=cutoff);}
+
+  // ── Pre-compute periods for each preset ──
+  function buildPeriodData(days, keyFn, periodList) {
+    const tx=txInRange(days);
+    return aggregatePeriods(tx, keyFn, periodList);
+  }
+
+  const periodData={
+    alltime: {
+      daily:   buildPeriodData(0, r=>dateKey(r),  days30), // last 30 days for daily view
+      weekly:  buildPeriodData(0, r=>weekKey(r),  weeks12),
+      monthly: buildPeriodData(0, r=>monthKey(r), months12),
+    },
+    d7:  { daily:  buildPeriodData(7,  r=>dateKey(r), days7),  weekly: buildPeriodData(7,  r=>weekKey(r),  genWeeks(2)),  monthly: buildPeriodData(7,  r=>monthKey(r), genMonths(2))  },
+    d30: { daily:  buildPeriodData(30, r=>dateKey(r), days30), weekly: buildPeriodData(30, r=>weekKey(r),  genWeeks(5)),  monthly: buildPeriodData(30, r=>monthKey(r), genMonths(2))  },
+    d60: { daily:  buildPeriodData(60, r=>dateKey(r), days60), weekly: buildPeriodData(60, r=>weekKey(r),  genWeeks(9)),  monthly: buildPeriodData(60, r=>monthKey(r), genMonths(3))  },
+    d90: { daily:  buildPeriodData(90, r=>dateKey(r), days90), weekly: buildPeriodData(90, r=>weekKey(r),  genWeeks(13)), monthly: buildPeriodData(90, r=>monthKey(r), genMonths(4))  },
+  };
+
+  // Add labels to period data
+  Object.keys(periodData).forEach(preset=>{
+    Object.keys(periodData[preset]).forEach(gran=>{
+      periodData[preset][gran].forEach(p=>{
+        if(gran==='daily'){const d=new Date(p.period);p.label=`${d.getDate()}/${d.getMonth()+1}`;}
+        else if(gran==='weekly'){const d=new Date(p.period);p.label=`W${d.getDate()}/${d.getMonth()+1}`;}
+        else p.label=monthLabel(p.period);
+      });
+    });
+  });
+
+  // ── Summary KPIs per preset ──
+  function summaryKPIs(days) {
+    const tx=txInRange(days);
+    const buyers=new Set(tx.map(r=>r._memberId));
+    const bills=new Set(tx.map(r=>r._bill));
+    const totalRev=tx.reduce((s,r)=>s+r._amt,0);
+    const billsByMember={};
+    tx.forEach(r=>{if(!billsByMember[r._memberId])billsByMember[r._memberId]=new Set();billsByMember[r._memberId].add(r._bill);});
+    const repeatB=Object.values(billsByMember).filter(s=>s.size>=2).length;
+    const rRate=buyers.size>0?+(repeatB/buyers.size*100).toFixed(1):0;
+    const aov=bills.size>0?Math.round(totalRev/bills.size):0;
+    const freq=buyers.size>0?+(bills.size/buyers.size).toFixed(2):0;
+
+    // Revenue by store
+    const revByStore={};
+    tx.forEach(r=>{revByStore[r._store]=(revByStore[r._store]||0)+r._amt;});
+    const stores=Object.entries(revByStore).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([s,v])=>({store:s,rev:Math.round(v),pct:totalRev>0?+(v/totalRev*100).toFixed(1):0}));
+
+    // Revenue by category
+    const revByCat={};
+    tx.forEach(r=>{revByCat[r._cat]=(revByCat[r._cat]||0)+r._amt;});
+    const cats=Object.entries(revByCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>({cat:c,rev:Math.round(v)}));
+
+    // Revenue by tier
+    const revByTier={};
+    tx.forEach(r=>{const t=(maMap[r._memberId]?._scheme)||'MEMBER';revByTier[t]=(revByTier[t]||0)+r._amt;});
+
+    // Status in period
+    const buyerSet=buyers;
+    let activeCount=0,atRiskCount=0,churnedCount=0,noPurchaseCount=0;
+    ma.forEach(c=>{
+      if(buyerSet.has(c['No'])){activeCount++;return;}
+      if(!c._lastDate){noPurchaseCount++;return;}
+      if(c._days<=365) atRiskCount++;
+      else churnedCount++;
+    });
+
+    // Near Upgrade
+    const revByMember={};
+    tx.forEach(r=>{revByMember[r._memberId]=(revByMember[r._memberId]||0)+r._amt;});
+    const NEAR_PCT=0.8;
+    const THRESHOLDS={MEMBER:3000000,SILVER:6000000,GOLD:20000000};
+    const nuCalc={silver:[],gold:[],plat:[]};
+    ma.forEach(c=>{
+      const rev=revByMember[c['No']]||0;
+      const upper=THRESHOLDS[c._scheme]; if(!upper) return;
+      const lower=upper*NEAR_PCT;
+      if(rev>=lower&&rev<upper){
+        const key=c._scheme==='MEMBER'?'silver':c._scheme==='SILVER'?'gold':'plat';
+        nuCalc[key].push({no:c['No'],rev12:Math.round(rev),gap:Math.round(upper-rev),pct:+(rev/upper*100).toFixed(1),last:c['Last Date']||''});
+      }
+    });
+    ['silver','gold','plat'].forEach(k=>nuCalc[k].sort((a,b)=>b.rev12-a.rev12));
+
+    // Category buyers (KH bought each category)
+    const catBuyers={};
+    tx.forEach(r=>{if(!catBuyers[r._cat])catBuyers[r._cat]=new Set();catBuyers[r._cat].add(r._memberId);});
+    const catBuyerCounts={};
+    Object.entries(catBuyers).forEach(([c,s])=>catBuyerCounts[c]=s.size);
+
+    return {totalRev:Math.round(totalRev),buyers:buyers.size,bills:bills.size,repeatCustomers:repeatB,repeatRate:rRate,aov,freq,stores,cats,catBuyerCounts,revByTier:Object.entries(revByTier).map(([t,v])=>({tier:t,rev:Math.round(v)})),status:{active:activeCount,atRisk:atRiskCount,churned:churnedCount,noPurchase:noPurchaseCount},nearUpgrade:{silver:nuCalc.silver.slice(0,20),gold:nuCalc.gold.slice(0,20),plat:nuCalc.plat.slice(0,20),countSilver:nuCalc.silver.length,countGold:nuCalc.gold.length,countPlat:nuCalc.plat.length}};
+  }
+
+  const summaries={alltime:summaryKPIs(0),d7:summaryKPIs(7),d30:summaryKPIs(30),d60:summaryKPIs(60),d90:summaryKPIs(90)};
+
+  // ── All-time overview ──
+  const schemeCount={};
+  ma.forEach(r=>{schemeCount[r._scheme]=(schemeCount[r._scheme]||0)+1;});
+
+  const cutoff12m=new Date(TODAY); cutoff12m.setFullYear(cutoff12m.getFullYear()-1);
+  const mse12=validTx.filter(r=>r._date>=cutoff12m);
+  const newByMonth=genMonths(12).map(ym=>{
+    const count=ma.filter(r=>r._created&&`${r._created.getFullYear()}-${String(r._created.getMonth()+1).padStart(2,'0')}`===ym).length;
+    return{ym,label:monthLabel(ym),count};
+  });
+
+  // All-time retention
+  const allTimeTx=validTx;
+  const allBillsByM={};
+  allTimeTx.forEach(r=>{if(!allBillsByM[r._memberId])allBillsByM[r._memberId]=new Set();allBillsByM[r._memberId].add(r._bill);});
+  const repeatCustAT=Object.values(allBillsByM).filter(s=>s.size>=2).length;
+  const activeAT=ma.filter(r=>r._days<=180).length;
+  const atRiskAT=ma.filter(r=>r._days>180&&r._days<=365).length;
+  const churnedAT=ma.filter(r=>r._days>365).length;
+  const noPurchaseAT=ma.filter(r=>r._days>=99999).length;
+
+  // All-time revenue by year
+  const revByYear={};
+  validTx.forEach(r=>{revByYear[r._year]=(revByYear[r._year]||0)+r._amt;});
+
+  // Province dist
+  const provDist={};
+  ma.forEach(r=>{if(r['Tỉnh'])provDist[r['Tỉnh']]=(provDist[r['Tỉnh']]||0)+1;});
+
+  // Age dist
+  const ageBins={'<20':[0,20],'20-24':[20,25],'25-29':[25,30],'30-34':[30,35],'35-39':[35,40],'40-44':[40,45],'45-49':[45,50],'50-59':[50,60],'60+':[60,200]};
+  const ageDist={};
+  Object.keys(ageBins).forEach(k=>ageDist[k]=0);
+  ma.forEach(c=>{const age=c._age;if(!age)return;for(const[k,[lo,hi]]of Object.entries(ageBins)){if(age>=lo&&age<hi){ageDist[k]++;break;}}});
+
+  // ── allCustomers list ──
+  const rev12mByMember={};
+  mse12.forEach(r=>{rev12mByMember[r._memberId]=(rev12mByMember[r._memberId]||0)+r._amt;});
+  // Cat bought per member
+  const catByMember={};
+  validTx.forEach(r=>{if(!catByMember[r._memberId])catByMember[r._memberId]=new Set();catByMember[r._memberId].add(r._cat);});
+
+  const allCustomers=ma.map(c=>{
+    const rev12=rev12mByMember[c['No']]||0;
+    const upper={MEMBER:3000000,SILVER:6000000,GOLD:20000000}[c._scheme];
+    let near='';
+    if(upper){const lower=upper*0.8;if(rev12>=lower&&rev12<upper)near=c._scheme==='MEMBER'?'Near Silver':c._scheme==='SILVER'?'Near Gold':'Near Platinum';}
+    let status='No Purchase';
+    if(c._lastDate){status=c._days<=180?'Active':c._days<=365?'At-Risk':'Churned';}
+    return{no:c['No']||'',name:c['Description']||'',phone:c['Số điện thoại']||'',tier:c._scheme,status,near,province:c['Tỉnh']||'',store:c['Store']||'',age:c._age,rev12m:Math.round(rev12),points12m:Math.round(rev12/10000),totalRev:Math.round(c._total),lastDate:c['Last Date']||'',daysSince:c._days<99999?c._days:null,createdDate:c._created?c._created.toISOString().slice(0,10):'',cats:[...(catByMember[c['No']]||new Set())].sort().join(',')};
+  });
+
+  // ── Categories list ──
+  const categories=[...new Set(validTx.map(r=>r._cat).filter(Boolean))].sort();
+
+  // ── rawTx compact [date, memberId, amount, category, billNo] for Export date range ──
+  const rawTx = validTx.map(r=>[
+    r._date.toISOString().slice(0,10),  // 0: date YYYY-MM-DD
+    r._memberId,                          // 1: member no
+    Math.round(r._amt),                   // 2: amount
+    r._cat,                               // 3: category
+    r._bill,                              // 4: bill no
+  ]);
+
+  return {
+    meta:{updatedAt:todayStr,totalCustomers:ma.length},
+    overview:{schemeCount,newByMonth,revByYear:Object.entries(revByYear).sort((a,b)=>a[0]-b[0]).map(([y,v])=>({year:y,rev:Math.round(v)})),revByTierAlltime:summaries.alltime.revByTier,storesAlltime:summaries.alltime.stores},
+    retention:{active:activeAT,atRisk:atRiskAT,churned:churnedAT,noPurchase:noPurchaseAT,activeRate:+(activeAT/ma.length*100).toFixed(1),atRiskRate:+(atRiskAT/ma.length*100).toFixed(1),churnRate:+(churnedAT/ma.length*100).toFixed(1),repeatCustomers:repeatCustAT,repeatRate:+(repeatCustAT/ma.length*100).toFixed(1)},
+    profile:{ageDist,topProvinces:Object.entries(provDist).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([p,c])=>({province:p,count:c}))},
+    summaries,
+    periodData,
+    categories,
+    allCustomers,
+    rawTx,
+  };
+}
+
+// ════════════════════════════════════════
+// UPLOAD FLOW
+// ════════════════════════════════════════
+async function processAndUpload() {
+  if(!selectedFile) return;
+  const owner=LS.get('owner')||document.getElementById('ghOwner').value.trim();
+  const repo=LS.get('repo')||document.getElementById('ghRepo').value.trim();
+  const branch=LS.get('branch')||'main';
+  const token=LS.get('token')||document.getElementById('ghToken').value.trim();
+  if(!token) return showStatus('uploadStatus','error','⚠ Chưa có token');
+  if(!owner||!repo) return showStatus('uploadStatus','error','⚠ Chưa có GitHub config');
+
+  document.getElementById('btnProcess').disabled=true;
+  document.getElementById('processLog').innerHTML='';
+  document.getElementById('processLog').style.display='block';
+
+  try {
+    log('📂 Đọc file Excel...','info'); setProgress(5,'Đọc file...');
+    const buf=await selectedFile.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',cellDates:true});
+    log(`✓ Sheets: ${wb.SheetNames.join(', ')}`, 'ok');
+
+    setProgress(15,'Parse Member Account...');
+    const ma=XLSX.utils.sheet_to_json(wb.Sheets['Member Account'],{defval:null,raw:false});
+    log(`✓ Member Account: ${ma.length} rows`,'ok');
+
+    setProgress(25,'Parse MemberSaleEntries...');
+    const mse=XLSX.utils.sheet_to_json(wb.Sheets['MemberSaleEntries'],{defval:null,raw:false});
+    log(`✓ MemberSaleEntries: ${mse.length} rows`,'ok');
+
+    setProgress(35,'⚙ Pre-computing tất cả KPIs (có thể mất ~30s)...','info');
+    log('⚙ Tính KPIs cho tất cả preset + granularity...','info');
+
+    // Yield to browser to update UI before heavy computation
+    await new Promise(r=>setTimeout(r,50));
+    const data=computeAllKPIs(ma,mse);
+    log(`✓ KPIs computed — ${Object.keys(data).length} sections, ${data.categories.length} categories`,'ok');
+    setProgress(60,'Upload lên GitHub...');
+
+    const jsonStr=JSON.stringify(data);
+    log(`📦 data.json size: ${(jsonStr.length/1024/1024).toFixed(1)} MB`,'info');
+
+    async function ghPut(path,content,msg) {
+      const b64=btoa(unescape(encodeURIComponent(content)));
+      let sha=null;
+      try{const ex=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});if(ex.ok){const j=await ex.json();sha=j.sha;}}catch(e){}
+      const body={message:msg,content:b64,branch};if(sha)body.sha=sha;
+      const res=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`,{method:'PUT',headers:{'Authorization':`token ${token}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},body:JSON.stringify(body)});
+      if(!res.ok){const e=await res.json();throw new Error(`GitHub API error ${res.status}: ${e.message}`);}
+      return res;
+    }
+
+    const todayDate=data.meta.updatedAt;
+    const commitMsg=`CRM data update ${todayDate}`;
+
+    log('🚀 [1/3] Upload data.json...','info'); setProgress(65,'Upload data.json...');
+    await ghPut('data.json',jsonStr,commitMsg);
+    log('✓ data.json OK','ok');
+
+    log(`🗓 [2/3] Upload data_${todayDate}.json...`,'info'); setProgress(80,'Upload snapshot...');
+    await ghPut(`data_${todayDate}.json`,jsonStr,commitMsg);
+    log(`✓ data_${todayDate}.json OK`,'ok');
+
+    log('📋 [3/3] Update history.json...','info'); setProgress(90,'Update history...');
+    let history={snapshots:[]};
+    try{const h=await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/history.json?t=${Date.now()}`);if(h.ok)history=await h.json();}catch(e){}
+    history.snapshots=history.snapshots.filter(s=>s.date!==todayDate);
+    history.snapshots.unshift({date:todayDate,file:`data_${todayDate}.json`,totalCustomers:data.meta.totalCustomers});
+    history.snapshots=history.snapshots.slice(0,90);
+    history.lastUpdated=todayDate;
+    await ghPut('history.json',JSON.stringify(history,null,2),commitMsg);
+    log(`✓ history.json OK — ${history.snapshots.length} snapshots`,'ok');
+
+    setProgress(100,'Hoàn tất! 🎉');
+    log(`✅ Upload thành công! Dashboard: https://${owner}.github.io/${repo}/`,'ok');
+    showStatus('uploadStatus','success',`✓ Upload thành công — Dashboard cập nhật tức thì`);
+
+  } catch(err) {
+    log(`❌ Lỗi: ${err.message}`,'err');
+    showStatus('uploadStatus','error',`❌ ${err.message}`);
+    setProgress(0,'');
+  } finally {
+    document.getElementById('btnProcess').disabled=false;
+  }
+}
+</script>
+</body>
+</html>
