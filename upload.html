@@ -347,9 +347,14 @@ function computeAllKPIs(ma, mse) {
   const churnedAT=ma.filter(r=>r._days>365).length;
   const noPurchaseAT=ma.filter(r=>r._days>=99999).length;
 
-  // All-time revenue by year
+  // ── All-time revenue by year ──
   const revByYear={};
-  validTx.forEach(r=>{revByYear[r._year]=(revByYear[r._year]||0)+r._amt;});
+  validTx.forEach(r=>{
+    if(r._date) {
+      const yr = r._date.getFullYear();
+      revByYear[yr]=(revByYear[yr]||0)+r._amt;
+    }
+  });
 
   // Province dist
   const provDist={};
@@ -381,14 +386,16 @@ function computeAllKPIs(ma, mse) {
   // ── Categories list ──
   const categories=[...new Set(validTx.map(r=>r._cat).filter(Boolean))].sort();
 
-  // ── rawTx compact [date, memberId, amount, category, billNo] for Export date range ──
+  // ── rawTx compact — saved as SEPARATE file rawtx.json ──
   const rawTx = validTx.map(r=>[
-    r._date.toISOString().slice(0,10),  // 0: date YYYY-MM-DD
-    r._memberId,                          // 1: member no
-    Math.round(r._amt),                   // 2: amount
-    r._cat,                               // 3: category
-    r._bill,                              // 4: bill no
+    r._date.toISOString().slice(0,10),
+    r._memberId,
+    Math.round(r._amt),
+    r._cat,
+    r._bill,
   ]);
+
+  window._rawTxData = rawTx; // will be pushed as rawtx.json
 
   return {
     meta:{updatedAt:todayStr,totalCustomers:ma.length},
@@ -399,9 +406,12 @@ function computeAllKPIs(ma, mse) {
     periodData,
     categories,
     allCustomers,
-    rawTx,
+    _rawTxRef: 'rawtx.json', // tells index.html where to load rawTx from
   };
 }
+
+// Export rawTx separately
+window._rawTxData = null;
 
 // ════════════════════════════════════════
 // UPLOAD FLOW
@@ -433,17 +443,16 @@ async function processAndUpload() {
     const mse=XLSX.utils.sheet_to_json(wb.Sheets['MemberSaleEntries'],{defval:null,raw:false});
     log(`✓ MemberSaleEntries: ${mse.length} rows`,'ok');
 
-    setProgress(35,'⚙ Pre-computing tất cả KPIs (có thể mất ~30s)...','info');
-    log('⚙ Tính KPIs cho tất cả preset + granularity...','info');
-
-    // Yield to browser to update UI before heavy computation
+    log('⚙ Pre-computing tất cả KPIs...','info');
     await new Promise(r=>setTimeout(r,50));
     const data=computeAllKPIs(ma,mse);
-    log(`✓ KPIs computed — ${Object.keys(data).length} sections, ${data.categories.length} categories`,'ok');
+    const rawTx=window._rawTxData;
+    log(`✓ KPIs computed — ${data.categories.length} categories, ${rawTx?.length||0} tx rows`,'ok');
     setProgress(60,'Upload lên GitHub...');
 
-    const jsonStr=JSON.stringify(data);
-    log(`📦 data.json size: ${(jsonStr.length/1024/1024).toFixed(1)} MB`,'info');
+    const mainJson=JSON.stringify(data);
+    const rawTxJson=JSON.stringify(rawTx||[]);
+    log(`📦 data.json: ${(mainJson.length/1024).toFixed(0)}KB · rawtx.json: ${(rawTxJson.length/1024).toFixed(0)}KB`,'info');
 
     async function ghPut(path,content,msg) {
       const b64=btoa(unescape(encodeURIComponent(content)));
@@ -458,15 +467,19 @@ async function processAndUpload() {
     const todayDate=data.meta.updatedAt;
     const commitMsg=`CRM data update ${todayDate}`;
 
-    log('🚀 [1/3] Upload data.json...','info'); setProgress(65,'Upload data.json...');
-    await ghPut('data.json',jsonStr,commitMsg);
+    log('🚀 [1/4] Upload data.json...','info'); setProgress(65,'Upload data.json...');
+    await ghPut('data.json', mainJson, commitMsg);
     log('✓ data.json OK','ok');
 
-    log(`🗓 [2/3] Upload data_${todayDate}.json...`,'info'); setProgress(80,'Upload snapshot...');
-    await ghPut(`data_${todayDate}.json`,jsonStr,commitMsg);
+    log('🚀 [2/4] Upload rawtx.json...','info'); setProgress(72,'Upload rawtx.json...');
+    await ghPut('rawtx.json', rawTxJson, commitMsg);
+    log('✓ rawtx.json OK','ok');
+
+    log(`🗓 [3/4] Upload data_${todayDate}.json...`,'info'); setProgress(82,'Upload snapshot...');
+    await ghPut(`data_${todayDate}.json`, mainJson, commitMsg);
     log(`✓ data_${todayDate}.json OK`,'ok');
 
-    log('📋 [3/3] Update history.json...','info'); setProgress(90,'Update history...');
+    log('📋 [4/4] Update history.json...','info'); setProgress(90,'Update history...');
     let history={snapshots:[]};
     try{const h=await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/history.json?t=${Date.now()}`);if(h.ok)history=await h.json();}catch(e){}
     history.snapshots=history.snapshots.filter(s=>s.date!==todayDate);
