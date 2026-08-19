@@ -426,12 +426,19 @@ async function loadRaw(){
   if(rawLoaded||rawLoading)return;
   rawLoading=true;
   $('exLoad').style.display='block';
+  $('exLoad').textContent='⏳ Đang tải dữ liệu giao dịch để filter date... (lần đầu ~5 giây)';
   try{
     const r=await fetch(RAWTX_URL+'?t='+Date.now());
-    if(r.ok) RAW=await r.json();
-  }catch(e){RAW=[];}
+    if(!r.ok) throw new Error('HTTP '+r.status+' — Vui lòng upload lại file xlsx');
+    RAW=await r.json();
+    $('exLoad').textContent=`✓ Đã tải ${RAW.length.toLocaleString('vi-VN')} giao dịch — filter date sẵn sàng`;
+    setTimeout(()=>{$('exLoad').style.display='none';},2000);
+  }catch(e){
+    RAW=[];
+    $('exLoad').textContent='⚠ Chưa có rawtx.json — filter date chưa khả dụng. Vui lòng upload lại file xlsx qua trang Upload.';
+    $('exLoad').style.color='#e89a90';
+  }
   rawLoaded=true;rawLoading=false;
-  $('exLoad').style.display='none';
   EDA();
 }
 
