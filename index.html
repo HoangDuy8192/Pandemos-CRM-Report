@@ -379,7 +379,11 @@ canvas{max-height:220px;}
 const GITHUB_OWNER  = 'HoangDuy8192';
 const GITHUB_REPO   = 'Pandemos-CRM-Report';
 const GITHUB_BRANCH = 'main';
-const DATA_URL = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/data.json`;
+const DATA_URL   = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/data.json`;
+const RAWTX_URL  = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/rawtx.json`;
+
+let _rawTxLoaded = false;
+let _rawTxLoading = false;
 
 Chart.defaults.color='#8a8278'; Chart.defaults.borderColor='#2e2b26'; Chart.defaults.font.family='Inter'; Chart.defaults.font.size=11;
 const C={GOLD:'#c9a84c',GOLD2:'#e8c97a',ROSE:'#c46b5e',SAGE:'#7a9e7e',SILVER:'#9ea6b4',PLAT:'#d4d0c8'};
@@ -401,6 +405,29 @@ function showTab(id,el){
   document.getElementById('tab-'+id).classList.add('active');
   el.classList.add('active');
   document.getElementById('filterBar').classList.toggle('show',FILTER_TABS.has(id));
+  // Lazy load rawTx only when Export tab is opened
+  if(id==='export' && !_rawTxLoaded && !_rawTxLoading) loadRawTx();
+}
+
+async function loadRawTx() {
+  _rawTxLoading = true;
+  const expCount = document.getElementById('expCount');
+  if(expCount) expCount.textContent = '⏳ Đang tải...';
+  try {
+    const res = await fetch(RAWTX_URL + '?t=' + Date.now());
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rawTx = await res.json();
+    if(D) D.rawTx = rawTx;
+    _rawTxLoaded = true;
+    applyExpDate(); // re-render export with rawTx
+  } catch(e) {
+    console.warn('rawtx.json not found, Export date filter limited:', e.message);
+    _rawTxLoaded = true; // mark as attempted
+    if(D) D.rawTx = [];
+    applyExpDate();
+  } finally {
+    _rawTxLoading = false;
+  }
 }
 
 // ════════ FILTER CONTROLS ════════
