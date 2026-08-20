@@ -406,10 +406,7 @@ function line(data,color,lbl=''){return{label:lbl,data,borderColor:color,backgro
 async function init(){
   try{
     $('lt').textContent='Đang kết nối GitHub...';
-    const r=await fetch(DATA_URL+'?nocache='+Date.now()+'&r='+Math.random(), {
-      cache: 'no-store',
-      headers: {'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache'}
-    });
+    const r=await fetch(DATA_URL+'?t='+Date.now());
     if(!r.ok) throw new Error('HTTP '+r.status);
     D=await r.json();
     $('lt').textContent='Đang render...';
