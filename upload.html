@@ -454,12 +454,31 @@ async function processAndUpload() {
     const rawTxJson=JSON.stringify(rawTx||[]);
     log(`📦 data.json: ${(mainJson.length/1024).toFixed(0)}KB · rawtx.json: ${(rawTxJson.length/1024).toFixed(0)}KB`,'info');
 
-    async function ghPut(path,content,msg) {
-      const b64=btoa(unescape(encodeURIComponent(content)));
-      let sha=null;
-      try{const ex=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});if(ex.ok){const j=await ex.json();sha=j.sha;}}catch(e){}
-      const body={message:msg,content:b64,branch};if(sha)body.sha=sha;
-      const res=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`,{method:'PUT',headers:{'Authorization':`token ${token}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},body:JSON.stringify(body)});
+    async function ghPut(path, content, msg) {
+      // Encode large strings safely without btoa overflow
+      function toB64(str) {
+        const bytes = new TextEncoder().encode(str);
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+        }
+        return btoa(binary);
+      }
+      const b64 = toB64(content);
+      let sha = null;
+      try {
+        const ex = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,
+          {headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+        if(ex.ok){const j=await ex.json();sha=j.sha;}
+      } catch(e){}
+      const body={message:msg,content:b64,branch};
+      if(sha) body.sha=sha;
+      const res=await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`,{
+        method:'PUT',
+        headers:{'Authorization':`token ${token}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+        body:JSON.stringify(body)
+      });
       if(!res.ok){const e=await res.json();throw new Error(`GitHub API error ${res.status}: ${e.message}`);}
       return res;
     }
