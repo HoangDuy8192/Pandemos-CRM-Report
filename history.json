@@ -1,6 +1,11 @@
 {
   "snapshots": [
     {
+      "date": "2026-08-26",
+      "file": "data_2026-08-26.json",
+      "totalCustomers": 10817
+    },
+    {
       "date": "2026-08-25",
       "file": "data_2026-08-25.json",
       "totalCustomers": 10816
@@ -50,5 +55,5 @@
       "nearUpgrade": 550
     }
   ],
-  "lastUpdated": "2026-08-25"
+  "lastUpdated": "2026-08-26"
 }
